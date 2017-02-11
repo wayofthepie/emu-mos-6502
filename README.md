@@ -1,2 +1,2 @@
 # MOS 6502 Emulator
-Emulator for the MOS 6502 processor.
+Work in progress emulator for the MOS 6502 processor.
