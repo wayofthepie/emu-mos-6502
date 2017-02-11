@@ -124,6 +124,7 @@ type family FlagBit f = i | i -> f where
   FlagBit 6 = Overflow
   FlagBit 7 = Sign
 
+-- | Unifies all of our flags under a single type.
 data Flag = forall a. (Eq a, Flag_ a, Show a) => Flag a
 
 instance Show Flag where
