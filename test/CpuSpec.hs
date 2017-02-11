@@ -38,8 +38,8 @@ prop_setFlag_setsBitForFlag :: Status -> Bool
 prop_setFlag_setsBitForFlag s = let b = statusBits s in
   setFlag Sign s == (initStatus $ setBit b 7)
 
-prop_setFlag_bit5ShouldAlwaysBeSet (Flag f) s = let b = statusBits s in
-  let b = statusBits (setFlag f $ s)
+prop_setFlag_bit5ShouldAlwaysBeSet (Flag f) s =
+  let b = statusBits s
   in  testBit b 5
 
 prop_clearFlag_clearsBitForFlag :: Status -> Bool
