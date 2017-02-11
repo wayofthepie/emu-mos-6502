@@ -16,11 +16,10 @@ module Cpu (
   , programCounter
   -- * Status Register
   -- $statusRegister
-  , Status
   , initStatusRegister
   , Flag
-  , clear
-  , set
+  , setFlag
+  , clearFlag
   , Sign(..)
   ) where
 
@@ -74,14 +73,25 @@ newtype Status = Status Word8 deriving (Eq, Show)
 initStatusRegister :: Status
 initStatusRegister = Status $ setBit 0x00 5
 
+-- | Carry flag, bit 0.
 data Carry = Carry
+
+-- | Zero flag, bit 1.
 data Zero = Zero
+
+-- | Interrupt enable/disable flag, bit 2
 data InterruptMode = InterruptMode
+
+-- | Decimal mode flag, bit 3.
 data DecimalMode = DecimalMode
-data SoftInterrupt = SoftInterrupt -- BRK instruction
+
+-- | B flag, for software interrupts (BRK instruction), bit 4
+data SoftInterrupt = SoftInterrupt
+
+-- | Overflow flag, bit 6.
 data Overflow = Overflow
 
--- | The Sign flag.
+-- | Sign flag, bit 7.
 data Sign = Sign
 
 -- | Relates status flags to their corresponding bit locations. Bit 5 is unused, but should
@@ -96,45 +106,58 @@ type family FlagBit f = i | i -> f where
 
 -- | A flag is a bit in the status register which can be set or cleared.
 class Flag a where
-  set   :: a -> Status -> Status
-  clear :: a -> Status -> Status
+  setFlag   :: a -> Status -> Status
+  clearFlag :: a -> Status -> Status
+  isSet     :: a -> Status -> Bool
 
 instance Flag Carry where
-  set _ s   = setBitF s Carry
-  clear _ s = clearBitF s Carry
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
 
 instance Flag Zero where
-  set _ s   = setBitF s Zero
-  clear _ s = clearBitF s Zero
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
 
 instance Flag DecimalMode where
-  set _ s   = setBitF s DecimalMode
-  clear _ s = clearBitF s DecimalMode
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
 
 instance Flag SoftInterrupt where
-  set _ s   = setBitF s SoftInterrupt
-  clear _ s = clearBitF s SoftInterrupt
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
 
 instance Flag Overflow where
-  set _ s   = setBitF s Overflow
-  clear _ s = clearBitF s Overflow
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
 
 instance Flag Sign where
-  set _ s   = setBitF s Sign
-  clear _ s = clearBitF s Sign
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
 
 
 -- | Set the bit corresponding to the given 'FlagBit'.
-setBitF :: KnownNat a => Status -> FlagBit a -> Status
-setBitF s f  = withStatusFlag f s setBit
+setBitF :: KnownNat a => FlagBit a -> Status -> Status
+setBitF f s = withStatusFlag f s setBit
 
 -- | Clear the bit corresponding to the given 'FlagBit'.
-clearBitF :: KnownNat a => Status -> FlagBit a -> Status
-clearBitF s f = withStatusFlag f s clearBit
+clearBitF :: KnownNat a => FlagBit a -> Status -> Status
+clearBitF f s = withStatusFlag f s clearBit
+
+isSetF :: KnownNat a => FlagBit a -> Status -> Bool
+isSetF f (Status b) = testBit b (flagBit f)
 
 -- | With the given 'FlagBit' location and a function, update the status register with that
 -- function.
 withStatusFlag :: KnownNat a => FlagBit a -> Status -> (Word8 -> Int -> Word8) -> Status
 withStatusFlag (flag :: FlagBit a) (Status b) f =
   Status $ f b (fromIntegral (natVal (Proxy :: Proxy a)))
+
+flagBit :: KnownNat a => FlagBit a -> Int
+flagBit (_ :: FlagBit a) = fromIntegral (natVal (Proxy :: Proxy a))
 
