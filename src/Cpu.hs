@@ -16,10 +16,18 @@ module Cpu (
   , programCounter
   -- * Status Register
   -- $statusRegister
-  , initStatusRegister
-  , Flag
+  , Status
+  , initStatus
+  , statusBits
+  , Flag(..)
   , setFlag
   , clearFlag
+  , Carry(..)
+  , Zero(..)
+  , InterruptMode(..)
+  , DecimalMode(..)
+  , SoftInterrupt(..)
+  , Overflow(..)
   , Sign(..)
   ) where
 
@@ -69,73 +77,95 @@ data Instruction = Instruction OpCode Word8 deriving (Eq, Show)
 
 newtype Status = Status Word8 deriving (Eq, Show)
 
--- | This constructor builds a 'Status' with bit 5 set and all other bits unset.
-initStatusRegister :: Status
-initStatusRegister = Status $ setBit 0x00 5
+-- | Builds a 'Status' from a 'Word8, setting bit 5.
+initStatus :: Word8 -> Status
+initStatus b = Status $ setBit b 5
+
+-- | The 'Word8' corresponding to 'Status'.
+statusBits :: Status -> Word8
+statusBits (Status b) = b
 
 -- | Carry flag, bit 0.
-data Carry = Carry
+data Carry = Carry deriving (Eq, Show)
+carry = Flag Carry
 
 -- | Zero flag, bit 1.
-data Zero = Zero
+data Zero = Zero deriving (Eq, Show)
+zero = Flag Zero
 
 -- | Interrupt enable/disable flag, bit 2
-data InterruptMode = InterruptMode
+data InterruptMode = InterruptMode deriving (Eq, Show)
+interruptMode = Flag InterruptMode
 
 -- | Decimal mode flag, bit 3.
-data DecimalMode = DecimalMode
+data DecimalMode = DecimalMode deriving (Eq, Show)
+decimalMode = Flag DecimalMode
 
 -- | B flag, for software interrupts (BRK instruction), bit 4
-data SoftInterrupt = SoftInterrupt
+data SoftInterrupt = SoftInterrupt deriving (Eq, Show)
+softInterrupt = Flag SoftInterrupt
 
 -- | Overflow flag, bit 6.
-data Overflow = Overflow
+data Overflow = Overflow deriving (Eq, Show)
+overflow = Flag Overflow
 
 -- | Sign flag, bit 7.
-data Sign = Sign
+data Sign = Sign deriving (Eq, Show)
+sign = Flag Sign
 
 -- | Relates status flags to their corresponding bit locations. Bit 5 is unused, but should
 -- be 1 at all times.
 type family FlagBit f = i | i -> f where
   FlagBit 0 = Carry
-  FlagBit 2 = Zero
+  FlagBit 1 = Zero
+  FlagBit 2 = InterruptMode
   FlagBit 3 = DecimalMode
   FlagBit 4 = SoftInterrupt
   FlagBit 6 = Overflow
   FlagBit 7 = Sign
 
+data Flag = forall a. (Eq a, Flag_ a, Show a) => Flag a
+
+instance Show Flag where
+  show (Flag f) = show f
+
 -- | A flag is a bit in the status register which can be set or cleared.
-class Flag a where
+class Flag_ a where
   setFlag   :: a -> Status -> Status
   clearFlag :: a -> Status -> Status
   isSet     :: a -> Status -> Bool
 
-instance Flag Carry where
+instance Flag_ Carry where
   setFlag   = setBitF
   clearFlag = clearBitF
   isSet     = isSetF
 
-instance Flag Zero where
+instance Flag_ Zero where
   setFlag   = setBitF
   clearFlag = clearBitF
   isSet     = isSetF
 
-instance Flag DecimalMode where
+instance Flag_ InterruptMode where
   setFlag   = setBitF
   clearFlag = clearBitF
   isSet     = isSetF
 
-instance Flag SoftInterrupt where
+instance Flag_ DecimalMode where
   setFlag   = setBitF
   clearFlag = clearBitF
   isSet     = isSetF
 
-instance Flag Overflow where
+instance Flag_ SoftInterrupt where
   setFlag   = setBitF
   clearFlag = clearBitF
   isSet     = isSetF
 
-instance Flag Sign where
+instance Flag_ Overflow where
+  setFlag   = setBitF
+  clearFlag = clearBitF
+  isSet     = isSetF
+
+instance Flag_ Sign where
   setFlag   = setBitF
   clearFlag = clearBitF
   isSet     = isSetF
