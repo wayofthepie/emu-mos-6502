@@ -82,31 +82,24 @@ statusBits (Status b) = b
 
 -- | Carry flag, bit 0.
 data Carry = Carry deriving (Eq, Show)
-carry = Flag Carry
 
 -- | Zero flag, bit 1.
 data Zero = Zero deriving (Eq, Show)
-zero = Flag Zero
 
 -- | Interrupt enable/disable flag, bit 2
 data InterruptMode = InterruptMode deriving (Eq, Show)
-interruptMode = Flag InterruptMode
 
 -- | Decimal mode flag, bit 3.
 data DecimalMode = DecimalMode deriving (Eq, Show)
-decimalMode = Flag DecimalMode
 
 -- | B flag, for software interrupts (BRK instruction), bit 4
 data SoftInterrupt = SoftInterrupt deriving (Eq, Show)
-softInterrupt = Flag SoftInterrupt
 
 -- | Overflow flag, bit 6.
 data Overflow = Overflow deriving (Eq, Show)
-overflow = Flag Overflow
 
 -- | Sign flag, bit 7.
 data Sign = Sign deriving (Eq, Show)
-sign = Flag Sign
 
 -- | Relates status flags to their corresponding bit locations. Bit 5 is unused, but should
 -- be 1 at all times.
