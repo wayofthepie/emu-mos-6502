@@ -1,24 +1,23 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeInType #-}
 module Cpu.Register (
   -- * Status Register
   -- $statusRegister
   Status
+  , StatusBit(..)
+  , StatusFlag(..)
   , initStatus
   , statusBits
-  , StatusFlag(..)
-  , Flag(..)
-  , StatusBit
-  , Carry(..)
-  , Zero(..)
-  , InterruptMode(..)
-  , DecimalMode(..)
-  , SoftInterrupt(..)
-  , Overflow(..)
-  , Sign(..)
+  , setFlag
+  , clearFlag
+  , isFlagSet
   ) where
 
 import Data.Bits
@@ -68,118 +67,61 @@ initStatus b = Status $ setBit b 5
 statusBits :: Status -> Word8
 statusBits (Status b) = b
 
--- | Carry flag, bit 0.
-data Carry = Carry deriving (Eq, Show)
-
--- | Zero flag, bit 1.
-data Zero = Zero deriving (Eq, Show)
-
--- | Interrupt enable/disable flag, bit 2
-data InterruptMode = InterruptMode deriving (Eq, Show)
-
--- | Decimal mode flag, bit 3.
-data DecimalMode = DecimalMode deriving (Eq, Show)
-
--- | B flag, for software interrupts (BRK instruction), bit 4
-data SoftInterrupt = SoftInterrupt deriving (Eq, Show)
-
--- | Overflow flag, bit 6.
-data Overflow = Overflow deriving (Eq, Show)
-
--- | Sign flag, bit 7.
-data Sign = Sign deriving (Eq, Show)
-
--- | Relates status flags to their corresponding bit locations. Bit 5 is unused, but should
--- be 1 at all times.
-type family StatusBit b = f | f -> b where
-  StatusBit 0 = Carry
-  StatusBit 1 = Zero
-  StatusBit 2 = InterruptMode
-  StatusBit 3 = DecimalMode
-  StatusBit 4 = SoftInterrupt
-  StatusBit 6 = Overflow
-  StatusBit 7 = Sign
+-- | Relates status flags to their corresponding bit locations.
+data StatusBit (b :: Nat) where
+  Carry         :: StatusBit 0
+  Zero          :: StatusBit 1
+  InterruptMode :: StatusBit 2
+  DecimalMode   :: StatusBit 3
+  SoftInterrupt :: StatusBit 4
+  Unused        :: StatusBit 5
+  Overflow      :: StatusBit 6
+  Sign          :: StatusBit 7
+deriving instance Show (StatusBit b)
 
 -- | Unifies all of our status register flags under a single type.
-data StatusFlag = forall a. (Eq a, Flag a, Show a) => StatusFlag a
+data StatusFlag = forall a. (KnownNat a) => StatusFlag (StatusBit a)
 
 instance Show StatusFlag where
-  show (StatusFlag f) = show f
+  show (StatusFlag f) = show "StatusFlag: " ++ show f
 
 
--- | A flag in th status register.
-class Flag a where
-  -- | Set the bit corresponding to the given 'StatusBit'. In the following example we set the
-  -- bit corresponding to the 'Sign' flag in an empty 'Status' register. This sets the last
-  -- (read left to right below, so right-most 'Int' in the list) bit, note that the fifth bit is
-  -- also set, this is /always/ set in the status register.
-  --
-  -- @
-  --  > let toBits x = [if testBit x i then 1 else 0 | i <-[ 0 .. finiteBitSize x - 1]]
-  --  > let status = setFlag Sign $ initStatus 0x00
-  --  > toBits $ statusBits status
-  --  [0,0,0,0,0,1,0,1]
-  -- @
-  setFlag :: a -> Status -> Status
+-- | Set the bit corresponding to the given 'StatusBit'. In the following example we set the
+-- bit corresponding to the /Sign/ flag in an empty 'Status' register. This sets the last
+-- (read left to right below, so right-most 'Int' in the list) bit, note that the fifth bit is
+-- also set, this is /always/ set in the status register.
+--
+-- @
+--  > let toBits x = [if testBit x i then 1 else 0 | i <-[ 0 .. finiteBitSize x - 1]]
+--  > let status = setFlag Sign $ initStatus 0x00
+--  > toBits $ statusBits status
+--  [0,0,0,0,0,1,0,1]
+-- @
+setFlag :: KnownNat a => StatusBit a -> Status -> Status
+setFlag Unused s = s
+setFlag f s = withStatusFlag f s setBit
 
-  -- | Clear the bit corresponding to the given 'StatusBit'. In the following example we set
-  -- and then clear the bit corresponding to the 'Sign' flag. Leaving the 'Status' register
-  -- with only bit 5 set.
-  --
-  -- @
-  --  > let toBits x = [if testBit x i then 1 else 0 | i <-[ 0 .. finiteBitSize x - 1]]
-  --  > let status = clearFlag Sign . setFlag Sign $ initStatus 0x00
-  --  >toBits $ statusBits status
-  --  [0,0,0,0,0,1,0,0]
-  -- @
-  clearFlag :: a -> Status -> Status
 
-  -- | True if the given flag is set in the given 'Status' register.
-  isFlagSet :: a -> Status -> Bool
+-- | Clear the bit corresponding to the given 'StatusBit'. In the following example we set
+-- and then clear the bit corresponding to the /Sign/ flag. Leaving the 'Status' register
+-- with only bit 5 set.
+--
+-- @
+--  > let toBits x = [if testBit x i then 1 else 0 | i <-[ 0 .. finiteBitSize x - 1]]
+--  > let status = clearFlag Sign . setFlag Sign $ initStatus 0x00
+--  >toBits $ statusBits status
+--  [0,0,0,0,0,1,0,0]
+-- @
+clearFlag :: KnownNat a => StatusBit a -> Status -> Status
+clearFlag Unused s = s
+clearFlag f s = withStatusFlag f s clearBit
 
-instance Flag Carry where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
 
-instance Flag Zero where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
+-- | True if the given flag is set in the given 'Status' register.
+isFlagSet :: KnownNat a => StatusBit a -> Status -> Bool
+isFlagSet Unused _ = True
+isFlagSet f (Status b) = testBit b (statusBit f)
 
-instance Flag InterruptMode where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
-
-instance Flag DecimalMode where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
-
-instance Flag SoftInterrupt where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
-
-instance Flag Overflow where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
-
-instance Flag Sign where
-  setFlag   = setBitF
-  clearFlag = clearBitF
-  isFlagSet = isSetF
-
-setBitF :: KnownNat a => StatusBit a -> Status -> Status
-setBitF f s = withStatusFlag f s setBit
-
-clearBitF :: KnownNat a => StatusBit a -> Status -> Status
-clearBitF f s = withStatusFlag f s clearBit
-
-isSetF :: KnownNat a => StatusBit a -> Status -> Bool
-isSetF f (Status b) = testBit b (statusBit f)
 
 -- | With the given 'StatusBit' location and a function, update the status register with that
 -- function.
