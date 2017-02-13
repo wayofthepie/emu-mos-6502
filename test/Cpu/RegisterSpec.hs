@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-module CpuSpec where
+module Cpu.RegisterSpec where
 
 import Data.Bits
 import GHC.Word
 
-import Cpu
+import Cpu.Register
 
 import Test.Tasty.Hspec
 import Test.Tasty.HUnit
@@ -59,3 +59,4 @@ prop_clearFlag_clearsBitForFlag s = let b = statusBits s in
 prop_isFlagSet_trueIfSet :: StatusFlag -> Status -> Bool
 prop_isFlagSet_trueIfSet (StatusFlag f) s = let b = statusBits s in
   isFlagSet f . setFlag f $ s
+

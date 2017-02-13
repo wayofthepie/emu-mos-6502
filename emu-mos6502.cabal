@@ -19,6 +19,7 @@ source-repository head
 library
   exposed-modules:
     Cpu
+    , Cpu.Register
   build-depends:
     base >=4.9 && <4.10
   hs-source-dirs:      src
