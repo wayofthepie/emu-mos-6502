@@ -1,6 +1,6 @@
 module Main where
 
-import Cpu
+import Cpu.Register
 import Criterion.Main
 
 -- | This is just a reminder as I keep forgetting how to do this,

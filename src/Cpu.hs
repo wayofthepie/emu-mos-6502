@@ -1,13 +1,18 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE TypeInType #-}
 module Cpu where
 
 import Data.Kind
 import Data.Proxy
 import GHC.TypeLits
 import GHC.Word (Word8, Word16)
+import Numeric (showHex)
 
 import Cpu.Register
 
@@ -27,47 +32,80 @@ data Cpu = Cpu
   , acc    :: Word8   -- ^ Accumulator
   } deriving (Eq, Show)
 
-programCounter = pc
+data Immediate = Immediate
+data ZeroPage = ZeroPage
+data ZeroPageX = ZeroPageX
+data Absolute = Absolute
+data AbsoluteX = AbsoluteX
+data AbsoluteY = AbsoluteY
+data IndirectX = IndirectX
+data IndirectY = IndirectY
 
-data Mnemonic = LDA deriving (Eq, Show)
-{-
-data OpCode = OpCode
-  { opCode      :: Word8
-  , instruction :: Mnemonic
-  , addrMode    :: AddressingMode
-  } deriving (Eq, Show)
+data Mnemonic where
+  ACC :: Mnemonic
 
-data Instruction = Instruction OpCode Word8 deriving (Eq, Show)
+data LDA a = LDA a
 
-decodeOpCode :: Word8 -> OpCode
-decodeOpCode w = let op = OpCode w in case w of
-  0xA9 -> op LDA Immediate
--}
--- | The number of bytes to read when we encounter a certain addressing mode, /after/ we
--- have already read the opcode byte corresponding to the instruction. Addressing modes
--- which do not require any bytes beyond the /opcode/ to be read are not part of this type
--- family
-{- type family AddrModeBytes n = mode | mode -> n where
-  AddrModeBytes 1 = Immediate
-  AddrModeBytes 2 = Absolute
-  AddrModeBytes 1 = ZeroPageAbsolute
-  AddrModeBytes 2 = Indexed
-  AddrModeBytes 1 = ZeroPageIndexed
-  AddrModeBytes 2 = Indirect
-  AddrModeBytes 1 = PreIndexedIndirect
-  AddrModeBytes 1 = PostIndexedIndirect -}
+data Instruction a = Instruction a
 
-data AddrModeBytes (n :: Nat) where
-  Immediate           :: AddrModeBytes 1
-  Absolute            :: AddrModeBytes 2
-  ZeroPageAbsolute    :: AddrModeBytes 1
-  Indexed             :: AddrModeBytes 2
-  ZerPageIndexed      :: AddrModeBytes 1
-  Indirect            :: AddrModeBytes 2
-  PreIndexedIndirect  :: AddrModeBytes 1
-  PostIndexedIndirect :: AddrModeBytes 1
+data Cycles a b
+data OpCode a
+data AddressModeBytes b
 
+-- | Relates instructions and their possible addressing modes to their size, 'OpCode' and
+-- number of 'Cycles'.
+type family InstructionInfoType a c o  = r | r -> a c o where
+  --  LDA
+  InstructionInfoType (AddressModeBytes 2) (Cycles 2 0) (OpCode 0xA9) = Instruction (LDA Immediate)
+  InstructionInfoType (AddressModeBytes 2) (Cycles 3 0) (OpCode 0xA5) = Instruction (LDA ZeroPage)
+  InstructionInfoType (AddressModeBytes 2) (Cycles 4 0) (OpCode 0xB5) = Instruction (LDA ZeroPageX)
+  InstructionInfoType (AddressModeBytes 3) (Cycles 4 0) (OpCode 0xAD) = Instruction (LDA Absolute)
+  InstructionInfoType (AddressModeBytes 3) (Cycles 4 1) (OpCode 0xBD) = Instruction (LDA AbsoluteX)
+  InstructionInfoType (AddressModeBytes 3) (Cycles 4 1) (OpCode 0xB9) = Instruction (LDA AbsoluteY)
+  InstructionInfoType (AddressModeBytes 2) (Cycles 6 0) (OpCode 0xA1) = Instruction (LDA IndirectX)
+  InstructionInfoType (AddressModeBytes 2) (Cycles 5 1) (OpCode 0xB1) = Instruction (LDA IndirectY)
 
-addrModeBytes :: KnownNat a => AddrModeBytes a -> Int
-addrModeBytes (_ :: AddrModeBytes a) = fromIntegral (natVal (Proxy :: Proxy a))
+-- | Information about an instruction and addressing mode pair.
+data InstructionInfo = InstructionInfo
+  { _size   :: Int
+  , _opCode :: Word8
+  , _cycles :: Int
+  , _oops   ::  Int
+  } deriving (Eq)
+
+-- FIXME: Clean this up!
+instance Show InstructionInfo where
+  show (InstructionInfo s o c oo) = show $
+    "InstructionInfo size = " ++ (show s)
+      ++ " opCode = 0x"  ++ showHex o " cycles = " ++ (show c)
+      ++ " oops = " ++ (show oo)
+
+-- | The size of the instruction and its possible operand.
+size :: InstructionInfo -> Int
+size   = _size
+
+-- |The opcode corresponding to this instruction.
+opCode :: InstructionInfo -> Word8
+opCode = _opCode
+
+-- | The number of cycles this instruction incurs, not including page boundary crosses
+--  (these are defined in 'oops')
+cycles :: InstructionInfo -> Int
+cycles = _cycles
+
+-- | The number of extra cycles if the instruction crosses a page boundary.
+oops :: InstructionInfo -> Int
+oops = _oops
+
+-- | Given an 'InstructionInfoType' construct a value level representation of the
+-- instruction information.
+instructionInfo :: (KnownNat a, KnownNat c, KnownNat e, KnownNat o) =>
+                InstructionInfoType (AddressModeBytes a) (Cycles c e) (OpCode o)
+                -> InstructionInfo
+instructionInfo (_ :: InstructionInfoType (AddressModeBytes a) (Cycles c e) (OpCode o)) =
+  InstructionInfo
+    (fromIntegral (natVal (Proxy :: Proxy a)))
+    (fromIntegral (natVal (Proxy :: Proxy o)))
+    (fromIntegral (natVal (Proxy :: Proxy c)))
+    (fromIntegral (natVal (Proxy :: Proxy e)))
 
