@@ -57,9 +57,29 @@ data ACC a = ACC a Word8 deriving Show
 data Instruction = forall a. (IsInstruction a, Show a) => Instruction a InstructionInfo
 deriving instance Show Instruction
 
-data Cycles a b
+-- | The phantom types in 'Cycles' are used to encode the number of cycles needed for an
+-- instruction using 'Nat's in 'Invariants'.
+data Cycles cycles oops
 
-data OperandBytes b
+-- | The phantom type in 'OperandBytes' is used to encode the size of an instructions
+-- operand using a 'Nat' in 'Invariants'.
+data OperandBytes size
+
+-- | Invariants about a given instruction - mnemonic and addressing mode. The following
+-- invariants are defined:
+--
+--  [@opBytes@]
+--    The size of the operand in bytes. This can be 0, 1 or 2.
+--
+--  [@cycles@]
+--    The number of cycles in an execution that does not cross page boundaries.
+--
+--  [@oops@]
+--    The number of /extra/ cycles if the instruction execution crosses page boundaries.
+type family Invariants opBytes cycles oops = r | r -> opBytes cycles oops where
+  Invariants (OperandBytes 1) (Cycles 2 0) (LDA Immediate) = LDA Immediate
+  Invariants (OperandBytes 1) (Cycles 2 0) (ACC Immediate) = ACC Immediate
+
 
 -- | Information about an instruction and addressing mode pair.
 data InstructionInfo = InstructionInfo
@@ -78,31 +98,15 @@ instance IsInstruction (ACC Immediate) where info = info'
 
 -- Convenience function, less characters to create 'IsInstruction' instances :P.
 info' ::
-  ( IsInstruction (Invariants (OperandBytes a) (Cycles c e) i)
-  , KnownNat e, KnownNat c, KnownNat a
+  ( KnownNat a, KnownNat c, KnownNat e
+  , IsInstruction (Invariants (OperandBytes a) (Cycles c e) i)
   , Show (Invariants (OperandBytes a) (Cycles c e) i)
   ) => Invariants (OperandBytes a) (Cycles c e) i -> Instruction
 info' a = Instruction a (instructionInfo a)
 
 
--- | Invariants about a given instruction - mnemonic and addressing mode. The following
--- invariants are defined:
---
---  [@opBytes@]
---    The size of the operand in bytes. This can be 0, 1 or 2.
---
---  [@cycles@]
---    The number of cycles in an execution that does not cross page boundaries.
---
---  [@oops@]
---    The number of /extra/ cycles if the instruction execution crosses page boundaries.
-type family Invariants opBytes cycles oops = r | r -> opBytes cycles oops where
-  Invariants (OperandBytes 1) (Cycles 2 0) (LDA Immediate) = LDA Immediate
-  Invariants (OperandBytes 1) (Cycles 2 0) (ACC Immediate) = ACC Immediate
-
-
 -- | From the given 'Invariants' pull the 'OperandBytes' size and number of 'Cycles'
--- (including normal 'cycles' and 'oops') 'oops' down to the value level.
+-- (including normal 'cycles' and 'oops') down to the value level.
 instructionInfo :: (KnownNat a, KnownNat c, KnownNat e) =>
                 Invariants (OperandBytes a) (Cycles c e) i
                 -> InstructionInfo

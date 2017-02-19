@@ -9,6 +9,7 @@ import qualified Data.Vector as V
 import GHC.Word (Word8)
 
 import Cpu
+import Instruction
 
 data Executable a = Executable a [Word8] deriving Show
 
