@@ -34,13 +34,13 @@ import GHC.Word (Word8, Word16)
 --
 -- This says load the value $22 directly into the accumulator.
 data Immediate = Immediate deriving Show
-data ZeroPage = ZeroPage
-data ZeroPageX = ZeroPageX
-data Absolute = Absolute
-data AbsoluteX = AbsoluteX
-data AbsoluteY = AbsoluteY
-data IndirectX = IndirectX
-data IndirectY = IndirectY
+data ZeroPage = ZeroPage deriving Show
+data ZeroPageX = ZeroPageX deriving Show
+data Absolute = Absolute deriving Show
+data AbsoluteX = AbsoluteX deriving Show
+data AbsoluteY = AbsoluteY deriving Show
+data IndirectX = IndirectX deriving Show
+data IndirectY = IndirectY deriving Show
 
 -- ** Mnemonics
 
@@ -80,8 +80,15 @@ data OperandBytes size
 --    The mnemonic and addressing mode pair.
 --
 type family Invariants opBytes cycles inst = r | r -> opBytes cycles inst where
+  -- LDA
   Invariants (OperandBytes 1) (Cycles 2 0) (LDA Immediate) = LDA Immediate
-  Invariants (OperandBytes 1) (Cycles 2 0) (ACC Immediate) = ACC Immediate
+  Invariants (OperandBytes 1) (Cycles 3 0) (LDA ZeroPage)  = LDA ZeroPage
+  Invariants (OperandBytes 1) (Cycles 4 0) (LDA ZeroPageX) = LDA ZeroPageX
+  Invariants (OperandBytes 2) (Cycles 4 0) (LDA Absolute)  = LDA Absolute
+  Invariants (OperandBytes 2) (Cycles 4 1) (LDA AbsoluteX) = LDA AbsoluteX
+  Invariants (OperandBytes 2) (Cycles 4 1) (LDA AbsoluteY) = LDA AbsoluteY
+  Invariants (OperandBytes 1) (Cycles 6 0) (LDA IndirectX) = LDA IndirectX
+  Invariants (OperandBytes 1) (Cycles 5 1) (LDA IndirectY) = LDA IndirectY
 
 
 -- | Information about an instruction pair.
@@ -90,34 +97,6 @@ data InstructionInfo = InstructionInfo
   , _cycles :: Int
   , _oops   :: Int
   } deriving (Eq, Show)
-
--- | Relates mnemonics and addressing mode pairs. Each instance encodes the operand size and
--- cycles.
-class IsInstruction a where
-  info :: a -> Instruction
-
-instance IsInstruction (LDA Immediate) where info = info'
-instance IsInstruction (ACC Immediate) where info = info'
-
--- Convenience function, less characters to create 'IsInstruction' instances :P.
-info' ::
-  ( KnownNat a, KnownNat c, KnownNat e
-  , IsInstruction (Invariants (OperandBytes a) (Cycles c e) i)
-  , Show (Invariants (OperandBytes a) (Cycles c e) i)
-  ) => Invariants (OperandBytes a) (Cycles c e) i -> Instruction
-info' a = Instruction a (instructionInfo a)
-
-
--- | From the given 'Invariants' pull the 'OperandBytes' size and number of 'Cycles'
--- (including normal 'cycles' and 'oops') down to the value level.
-instructionInfo :: (KnownNat a, KnownNat c, KnownNat e) =>
-                Invariants (OperandBytes a) (Cycles c e) i
-                -> InstructionInfo
-instructionInfo (_ :: Invariants (OperandBytes a) (Cycles c e) i) =
-  InstructionInfo
-    (fromIntegral (natVal (Proxy :: Proxy a)))
-    (fromIntegral (natVal (Proxy :: Proxy c)))
-    (fromIntegral (natVal (Proxy :: Proxy e)))
 
 -- | The size of the instruction and its possible operand.
 size :: InstructionInfo -> Int
@@ -132,5 +111,42 @@ cycles = _cycles
 oops :: InstructionInfo -> Int
 oops = _oops
 
+-- | Relates mnemonics and addressing mode pairs. Each instance encodes the operand size and
+-- cycles.
+class IsInstruction a
 
+-- LDA instances.
+instance IsInstruction (LDA Immediate)
+instance IsInstruction (LDA ZeroPage)
+instance IsInstruction (LDA ZeroPageX)
+instance IsInstruction (LDA Absolute)
+instance IsInstruction (LDA AbsoluteX)
+instance IsInstruction (LDA AbsoluteY)
+instance IsInstruction (LDA IndirectX)
+instance IsInstruction (LDA IndirectY)
+
+-- | Build an 'Instruction' which contains all known information about an instruction.
+buildInst a = Just $ Instruction a (instructionInfo a)
+
+-- | From the given 'Invariants' pull the 'OperandBytes' size and number of 'Cycles'
+-- (including normal 'cycles' and 'oops') down to the value level.
+instructionInfo :: (KnownNat a, KnownNat c, KnownNat e) =>
+                Invariants (OperandBytes a) (Cycles c e) i
+                -> InstructionInfo
+instructionInfo (_ :: Invariants (OperandBytes a) (Cycles c e) i) =
+  InstructionInfo
+    (fromIntegral (natVal (Proxy :: Proxy a)))
+    (fromIntegral (natVal (Proxy :: Proxy c)))
+    (fromIntegral (natVal (Proxy :: Proxy e)))
+
+-- | Build an 'Instruction' from the given byte. 'Nothing' if the byte does not map to a
+-- known instruction.
+decodeOpCode :: Word8 -> Maybe Instruction
+decodeOpCode op = case op of
+  -- LDA
+  0xA9 -> buildInst $ LDA Immediate op; 0xA5 -> buildInst $ LDA ZeroPage op;
+  0xB5 -> buildInst $ LDA ZeroPageX op; 0xAD -> buildInst $ LDA Absolute op;
+  0xBD -> buildInst $ LDA AbsoluteX op; 0xB9 -> buildInst $ LDA AbsoluteY op
+  0xA1 -> buildInst $ LDA IndirectX op; 0xB1 -> buildInst $ LDA IndirectY op;
+  _    -> Nothing
 

@@ -23,8 +23,3 @@ readInstruction mem pc =
     instruction@(Instruction _ info) <- decodeOpCode op
     pure $ Executable instruction (readOperand mem (pc + 1) (size info))
 
-decodeOpCode :: Word8 -> Maybe Instruction
-decodeOpCode op = case op of
-  0xA9 -> Just . info $ LDA Immediate op
-  0xA5 -> Just . info $ ACC Immediate op
-  _    -> Nothing
