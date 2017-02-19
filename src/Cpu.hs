@@ -44,39 +44,29 @@ data Cpu = Cpu
   , x      :: Word8   -- ^ X register
   , status :: Status  -- ^ Status register
   , sp     :: Word8   -- ^ Stack pointer
-  , acc    :: Word8   -- ^ Accumulator
+  , accumulator :: Accumulator -- ^ Accumulator
   } deriving (Eq, Show)
+
+
+readFrom :: (Cpu -> a) -> State Cpu a
+readFrom f = get >>= pure . f
 
 newtype Accumulator = Accumulator Word8 deriving (Eq, Show)
 
-loadAcc :: Word8 -> Accumulator
-loadAcc = Accumulator
-
-readAcc :: Accumulator  -> Word8
-readAcc (Accumulator w) = w
-
 newtype X = X Word8 deriving (Eq, Show)
-
-loadX = X
-readX (X w) = w
-
 newtype Y = Y Word8 deriving (Eq, Show)
-
-loadY = Y
-readY (Y w) = w
-
 newtype PC = PC Word16 deriving (Eq, Show)
-loadPc = PC
-readPc (PC w) = w
-
 newtype SP = SP Word8 deriving (Eq, Show)
-loadSp = SP
-readSp (SP w) = w
 
 -- | Initialize a Cpu.
 -- FIXME: Figure out how to correctly initialize.
-initCpu = Cpu 0x0000 0x00 0x00 (initStatus 0x00) 0x00 0x00
-
+initCpu = Cpu
+  0x0000
+  0x00
+  0x00
+  (initStatus 0x00)
+  0x00
+  (Accumulator 0x00)
 
 --------------------------------------------------------------------------------
 -- * Status Register

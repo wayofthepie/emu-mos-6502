@@ -23,7 +23,6 @@ library
     , Instruction
   build-depends:
     base >=4.9 && <4.10
-    , bytestring
     , mtl
     , vector
   hs-source-dirs:      src

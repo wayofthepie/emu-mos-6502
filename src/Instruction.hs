@@ -57,6 +57,26 @@ data ACC a = ACC a Word8 deriving Show
 data Instruction = forall a. (IsInstruction a, Show a) => Instruction a InstructionInfo
 deriving instance Show Instruction
 
+-- | Information about an instruction pair.
+data InstructionInfo = InstructionInfo
+  { _size   :: Int
+  , _cycles :: Int
+  , _oops   :: Int
+  } deriving (Eq, Show)
+
+-- | The size of the instruction and its possible operand.
+size :: InstructionInfo -> Int
+size   = _size
+
+-- | The number of cycles this instruction incurs, not including page boundary crosses
+--  (these are defined in 'oops').
+cycles :: InstructionInfo -> Int
+cycles = _cycles
+
+-- | The number of extra cycles if the instruction crosses a page boundary.
+oops :: InstructionInfo -> Int
+oops = _oops
+
 -- | The phantom types in 'Cycles' are used to encode the number of cycles needed for an
 -- instruction using 'Nat's in 'Invariants'.
 data Cycles cycles oops
@@ -91,28 +111,7 @@ type family Invariants opBytes cycles inst = r | r -> opBytes cycles inst where
   Invariants (OperandBytes 1) (Cycles 5 1) (LDA IndirectY) = LDA IndirectY
 
 
--- | Information about an instruction pair.
-data InstructionInfo = InstructionInfo
-  { _size   :: Int
-  , _cycles :: Int
-  , _oops   :: Int
-  } deriving (Eq, Show)
-
--- | The size of the instruction and its possible operand.
-size :: InstructionInfo -> Int
-size   = _size
-
--- | The number of cycles this instruction incurs, not including page boundary crosses
---  (these are defined in 'oops').
-cycles :: InstructionInfo -> Int
-cycles = _cycles
-
--- | The number of extra cycles if the instruction crosses a page boundary.
-oops :: InstructionInfo -> Int
-oops = _oops
-
--- | Relates mnemonics and addressing mode pairs. Each instance encodes the operand size and
--- cycles.
+-- | Relates mnemonics and addressing mode pairs which the instruction set actually allows.
 class IsInstruction a
 
 -- LDA instances.
@@ -125,19 +124,6 @@ instance IsInstruction (LDA AbsoluteY)
 instance IsInstruction (LDA IndirectX)
 instance IsInstruction (LDA IndirectY)
 
--- | Build an 'Instruction' which contains all known information about an instruction.
-buildInst a = Just $ Instruction a (instructionInfo a)
-
--- | From the given 'Invariants' pull the 'OperandBytes' size and number of 'Cycles'
--- (including normal 'cycles' and 'oops') down to the value level.
-instructionInfo :: (KnownNat a, KnownNat c, KnownNat e) =>
-                Invariants (OperandBytes a) (Cycles c e) i
-                -> InstructionInfo
-instructionInfo (_ :: Invariants (OperandBytes a) (Cycles c e) i) =
-  InstructionInfo
-    (fromIntegral (natVal (Proxy :: Proxy a)))
-    (fromIntegral (natVal (Proxy :: Proxy c)))
-    (fromIntegral (natVal (Proxy :: Proxy e)))
 
 -- | Build an 'Instruction' from the given byte. 'Nothing' if the byte does not map to a
 -- known instruction.
@@ -149,4 +135,20 @@ decodeOpCode op = case op of
   0xBD -> buildInst $ LDA AbsoluteX op; 0xB9 -> buildInst $ LDA AbsoluteY op
   0xA1 -> buildInst $ LDA IndirectX op; 0xB1 -> buildInst $ LDA IndirectY op;
   _    -> Nothing
+
+
+-- | Build an 'Instruction' which contains all known information about an instruction.
+buildInst a = Just $ Instruction a (instructionInfo a)
+
+
+-- | From the given 'Invariants' pull the 'OperandBytes' size and number of 'Cycles'
+-- (including normal 'cycles' and 'oops') down to the value level.
+instructionInfo :: (KnownNat a, KnownNat c, KnownNat e) =>
+                Invariants (OperandBytes a) (Cycles c e) i
+                -> InstructionInfo
+instructionInfo (_ :: Invariants (OperandBytes a) (Cycles c e) i) =
+  InstructionInfo
+    (fromIntegral (natVal (Proxy :: Proxy a)))
+    (fromIntegral (natVal (Proxy :: Proxy c)))
+    (fromIntegral (natVal (Proxy :: Proxy e)))
 
