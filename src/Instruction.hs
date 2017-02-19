@@ -69,19 +69,22 @@ data OperandBytes size
 -- invariants are defined:
 --
 --  [@opBytes@]
---    The size of the operand in bytes. This can be 0, 1 or 2.
+--    The size of the operand in bytes, defined with 'OperandBytes'. This can be 0, 1 or 2.
 --
 --  [@cycles@]
---    The number of cycles in an execution that does not cross page boundaries.
+--    A pair of numbers defined with 'Cycles'. The first represents the number of cycles
+--    in an execution which does not cross a page boundary and the second is the /extra/
+--    cycles if executioin crosses a page boundary.
 --
---  [@oops@]
---    The number of /extra/ cycles if the instruction execution crosses page boundaries.
-type family Invariants opBytes cycles oops = r | r -> opBytes cycles oops where
+--  [@inst@]
+--    The mnemonic and addressing mode pair.
+--
+type family Invariants opBytes cycles inst = r | r -> opBytes cycles inst where
   Invariants (OperandBytes 1) (Cycles 2 0) (LDA Immediate) = LDA Immediate
   Invariants (OperandBytes 1) (Cycles 2 0) (ACC Immediate) = ACC Immediate
 
 
--- | Information about an instruction and addressing mode pair.
+-- | Information about an instruction pair.
 data InstructionInfo = InstructionInfo
   { _size   :: Int
   , _cycles :: Int
