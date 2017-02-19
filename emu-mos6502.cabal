@@ -19,9 +19,13 @@ source-repository head
 library
   exposed-modules:
     Cpu
-    , Cpu.Register
+    , Executor
+    , Instruction
   build-depends:
     base >=4.9 && <4.10
+    , bytestring
+    , mtl
+    , vector
   hs-source-dirs:      src
 
   default-language:    Haskell2010

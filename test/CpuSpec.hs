@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-module Cpu.RegisterSpec where
+module CpuSpec where
 
 import Data.Bits
 import GHC.Word
 
-import Cpu.Register
+import Cpu
 
 import Test.Tasty.Hspec
 import Test.Tasty.HUnit
