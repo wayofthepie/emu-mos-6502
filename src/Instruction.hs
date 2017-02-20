@@ -143,8 +143,8 @@ buildInst a = Just $ Instruction a (instructionInfo a)
 
 -- | From the given 'Invariants' pull the 'OperandBytes' size and number of 'Cycles'
 -- (including normal 'cycles' and 'oops') down to the value level.
-instructionInfo :: (KnownNat a, KnownNat c, KnownNat e) =>
-                Invariants (OperandBytes a) (Cycles c e) i
+instructionInfo :: (KnownNat a, KnownNat c, KnownNat e)
+                => Invariants (OperandBytes a) (Cycles c e) i
                 -> InstructionInfo
 instructionInfo (_ :: Invariants (OperandBytes a) (Cycles c e) i) =
   InstructionInfo

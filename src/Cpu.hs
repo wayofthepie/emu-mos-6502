@@ -39,33 +39,44 @@ newtype Ram = Ram (V.Vector Word8)
 slice start size (Ram v) = V.slice start size v
 
 data Cpu = Cpu
-  { pc     :: Word16  -- ^ Program counter
-  , y      :: Word8   -- ^ Y register
-  , x      :: Word8   -- ^ X register
-  , status :: Status  -- ^ Status register
-  , sp     :: Word8   -- ^ Stack pointer
-  , accumulator :: Accumulator -- ^ Accumulator
+  { _pc     :: PC  -- ^ Program counter
+  , _x      :: X   -- ^ X register
+  , _y      :: Y   -- ^ Y register
+  , _status :: Status  -- ^ Status register
+  , _sp     :: SP   -- ^ Stack pointer
+  , _accumulator :: Accumulator -- ^ Accumulator
   } deriving (Eq, Show)
 
-
-readFrom :: (Cpu -> a) -> State Cpu a
-readFrom f = get >>= pure . f
-
 newtype Accumulator = Accumulator Word8 deriving (Eq, Show)
-
 newtype X = X Word8 deriving (Eq, Show)
 newtype Y = Y Word8 deriving (Eq, Show)
 newtype PC = PC Word16 deriving (Eq, Show)
 newtype SP = SP Word8 deriving (Eq, Show)
 
+-- | All registers except the 'Status' register are instances of 'Register'.
+class Register a where
+  loadRegister :: a -> State Cpu ()
+
+  getRegister :: (Cpu -> a) -> State Cpu a
+  getRegister f = get >>= pure . f
+
+instance Register Accumulator where
+  loadRegister a = modify (\cpu -> cpu { _accumulator = a })
+instance Register X where
+  loadRegister x = modify (\cpu -> cpu { _x = x })
+instance Register Y where
+  loadRegister y = modify (\cpu -> cpu { _y = y })
+instance Register SP where
+  loadRegister sp = modify (\cpu -> cpu { _sp = sp })
+
 -- | Initialize a Cpu.
 -- FIXME: Figure out how to correctly initialize.
 initCpu = Cpu
-  0x0000
-  0x00
-  0x00
+  (PC 0x0000)
+  (X 0x00)
+  (Y 0x00)
   (initStatus 0x00)
-  0x00
+  (SP 0x00)
   (Accumulator 0x00)
 
 --------------------------------------------------------------------------------
@@ -123,8 +134,8 @@ isFlagSet f (Cpu _ _ _ (Status b) _ _) = testBit b (statusBit f)
 withStatusFlag :: KnownNat a => StatusBit a -> (Word8 -> Int -> Word8) -> State Cpu ()
 withStatusFlag (flag :: StatusBit a) f = do
   cpu <- get
-  let (Status byte) = status cpu
-  put $ cpu { status = Status $ f byte (fromIntegral (natVal (Proxy :: Proxy a))) }
+  let (Status byte) = _status cpu
+  put $ cpu { _status = Status $ f byte (fromIntegral (natVal (Proxy :: Proxy a))) }
 
 statusBit :: KnownNat a => StatusBit a -> Int
 statusBit (_ :: StatusBit a) = fromIntegral (natVal (Proxy :: Proxy a))
