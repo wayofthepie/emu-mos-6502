@@ -46,11 +46,12 @@ data Cpu = Cpu
   , _sp     :: SP   -- ^ Stack pointer
   , _accumulator :: Accumulator -- ^ Accumulator
   } deriving (Eq, Show)
+newtype PC = PC Word16 deriving (Eq, Show)
 
 newtype Accumulator = Accumulator Word8 deriving (Eq, Show)
 newtype X = X Word8 deriving (Eq, Show)
 newtype Y = Y Word8 deriving (Eq, Show)
-newtype PC = PC Word16 deriving (Eq, Show)
+newtype Status = Status Word8 deriving (Eq, Show)
 newtype SP = SP Word8 deriving (Eq, Show)
 
 -- | All registers except the 'Status' register are instances of 'Register'.
@@ -80,12 +81,10 @@ initCpu = Cpu
   (Accumulator 0x00)
 
 --------------------------------------------------------------------------------
--- * Status Register
+-- * Status Register Actions
 -- $statusRegister
 -- The status register has 7 flags each corresponding to a single bit in a
 -- byte - with bit 5 unused and always set.
-
-newtype Status = Status Word8 deriving (Eq, Show)
 
 -- | Builds a 'Status' from a 'Word8', setting bit 5.
 initStatus :: Word8 -> Status

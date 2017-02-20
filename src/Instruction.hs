@@ -23,6 +23,14 @@ import GHC.Word (Word8, Word16)
 -- The 6502 has 56 instructions and a number of addressing modes.
 
 -- ** Addressing Modes
+-- $addressingModes
+-- The 6502 has 13 addressing modes.
+
+
+-- | For instructions which use an 'Implied' addressing mode the information to be
+-- manipulated is omplied by the instruction itself.
+data Implied = Implied deriving Show
+
 
 -- | With 'Immediate' addressing the operand is used directly to perform the computation. It
 -- is denoted in assembly with a /#/ before the operand.
@@ -34,13 +42,103 @@ import GHC.Word (Word8, Word16)
 --
 -- This says load the value $22 directly into the accumulator.
 data Immediate = Immediate deriving Show
+
+
+-- | Sometimes referred to as zero page absolute, as it is 'Absolute' addressing with
+-- /00/ for the high byte. In this addressing mode the operands address in memory is given.
+-- If the address is on zero page - any address where the high byte is /00/ - only a single
+-- byte is needed for the address, the processor will fill in the /00/ high byte.
+-- e.g.
+--
+-- @
+--  LDA $00F4
+-- @
+--
+-- This says load the value found at the address $F4 into the accumulator.
 data ZeroPage = ZeroPage deriving Show
+
+
+-- | Similar to 'ZeroPage', except the address given is added to the value in the 'X'
+-- register to give the actual address to be used. Note that the target address is
+-- limited to the first /0xFF/ bytes so overflow when computing the actual address will wrap
+-- around. For example, if the instruction is /LDA $C0,X/, and X is $60 then the target
+-- address will be /$20/. /$C0 +  $60 = $120/ but the value wraps around, i.e.
+-- /(x + y) mod 256/.
+-- e.g.
+--
+-- @
+--  LDA $20, X
+-- @
 data ZeroPageX = ZeroPageX deriving Show
+
+
+-- | See also 'ZeroPage'. With 'Absolute' addressing the operand is a full 16-nit address to
+-- the target location.
+-- e.g.
+--
+-- @
+--  LDA $31F6
+-- @
+--
+-- This says load the value at address $31F6. Note also that for 2 byte addresses the
+-- /low/ byte is store first, in the above case it would be stored as /$AD $F6 $31/.
 data Absolute = Absolute deriving Show
+
+
+-- | Similar to 'Absolute', except the address given is added to the value of the 'X'
+-- register to get the address of the actual value.
+-- e.g.
+--
+-- @
+--  LDA $31F6, X
+-- @
 data AbsoluteX = AbsoluteX deriving Show
+
+
+-- | Similar to 'Absolute', except the address given is added to the value of the 'Y'
+-- register to get the actual value of the address to be used.
+-- e.g.
+--
+-- @
+--  LDA $31F6, Y
+-- @
 data AbsoluteY = AbsoluteY deriving Show
-data IndirectX = IndirectX deriving Show
-data IndirectY = IndirectY deriving Show
+
+
+-- | This only applies to the 'JMP' instruction. The operand for the instruction is a 16-bit
+-- address which itself identifies another 16-bit address which is the real target of the
+-- instruction. For example if location $0120 contains $FC and location $0121 contains $BA
+-- then the instruction JMP ($0120) will cause the next instruction execution to occur at $BAFC
+-- (e.g. the contents of $0120 and $0121). e.g.
+--
+-- @
+--  JMP ($0120)
+-- @
+data Indirect = Indirect deriving Show
+
+
+-- | Normally used in conjunction with a table of addresses held on zero page. The address
+-- of the table is built using the value of the given byte added to the 'X' register (with
+-- zero page wrap around, see 'ZeroPageX'), this gives the location of the least significant
+-- byte of the target address. e.g.
+--
+-- @
+--  LDA ($40, X)
+-- @
+--
+-- Loads the byte at the address /($40 + X) mod 256/ into the accumulator.
+data IndexedIndirect = IndexedIndirect deriving Show
+
+
+-- | Using this addressing mode, the instruction takes the zero page location of the least
+-- significant byte of a 16-bit address and adds the 'Y' register to it to get the value of
+-- the actual address to be used. e.g.
+--
+-- @
+--  LDA ($40),Y
+-- @
+data IndirectIndexed = IndirectIndexed deriving Show
+
 
 -- ** Mnemonics
 
@@ -107,8 +205,6 @@ type family Invariants opBytes cycles inst = r | r -> opBytes cycles inst where
   Invariants (OperandBytes 2) (Cycles 4 0) (LDA Absolute)  = LDA Absolute
   Invariants (OperandBytes 2) (Cycles 4 1) (LDA AbsoluteX) = LDA AbsoluteX
   Invariants (OperandBytes 2) (Cycles 4 1) (LDA AbsoluteY) = LDA AbsoluteY
-  Invariants (OperandBytes 1) (Cycles 6 0) (LDA IndirectX) = LDA IndirectX
-  Invariants (OperandBytes 1) (Cycles 5 1) (LDA IndirectY) = LDA IndirectY
 
 
 -- | Relates mnemonics and addressing mode pairs which the instruction set actually allows.
@@ -121,8 +217,6 @@ instance IsInstruction (LDA ZeroPageX)
 instance IsInstruction (LDA Absolute)
 instance IsInstruction (LDA AbsoluteX)
 instance IsInstruction (LDA AbsoluteY)
-instance IsInstruction (LDA IndirectX)
-instance IsInstruction (LDA IndirectY)
 
 
 -- | Build an 'Instruction' from the given byte. 'Nothing' if the byte does not map to a
@@ -133,7 +227,6 @@ decodeOpCode op = case op of
   0xA9 -> buildInst $ LDA Immediate op; 0xA5 -> buildInst $ LDA ZeroPage op;
   0xB5 -> buildInst $ LDA ZeroPageX op; 0xAD -> buildInst $ LDA Absolute op;
   0xBD -> buildInst $ LDA AbsoluteX op; 0xB9 -> buildInst $ LDA AbsoluteY op
-  0xA1 -> buildInst $ LDA IndirectX op; 0xB1 -> buildInst $ LDA IndirectY op;
   _    -> Nothing
 
 
