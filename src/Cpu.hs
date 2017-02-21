@@ -1,15 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE TypeInType #-}
 module Cpu where
 
 import Control.Monad.Reader
@@ -22,7 +15,6 @@ import GHC.TypeLits
 import GHC.Word (Word8, Word16)
 import Numeric (showHex)
 
---import Cpu.Register
 
 --------------------------------------------------------------------------------
 ---- * Cpu
@@ -30,6 +22,9 @@ import Numeric (showHex)
 -- The 6502 Cpu has 6 registers:
 --
 --  * 'programCounter' - the Program Counter.
+
+
+type Machine = State Cpu ()
 
 newtype Ram = Ram (V.Vector Word8)
 
@@ -46,8 +41,8 @@ data Cpu = Cpu
   , _sp     :: SP   -- ^ Stack pointer
   , _accumulator :: Accumulator -- ^ Accumulator
   } deriving (Eq, Show)
-newtype PC = PC Word16 deriving (Eq, Show)
 
+newtype PC = PC Word16 deriving (Eq, Show)
 newtype Accumulator = Accumulator Word8 deriving (Eq, Show)
 newtype X = X Word8 deriving (Eq, Show)
 newtype Y = Y Word8 deriving (Eq, Show)

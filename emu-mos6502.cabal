@@ -19,8 +19,8 @@ source-repository head
 library
   exposed-modules:
     Cpu
+    , Cpu.Instruction
     , Executor
-    , Instruction
   build-depends:
     base >=4.9 && <4.10
     , mtl
