@@ -93,6 +93,14 @@ deriving instance Show (Instruction a b c d e f)
 type family OpBuild o = r where
   -- ADC
   OpBuild 0x69 = Instruction SADC SImmediate 0x69 2 2 0
+  OpBuild 0x65 = Instruction SADC SZeroPage  0x65 2 3 0
+  OpBuild 0x75 = Instruction SADC SZeroPageX 0x75 2 4 0
+  OpBuild 0x6D = Instruction SADC SAbsolute  0x6D 3 4 0
+  OpBuild 0x7D = Instruction SADC SAbsoluteX 0x7D 3 4 1
+  OpBuild 0x79 = Instruction SADC SAbsoluteY 0x79 3 4 1
+  OpBuild 0x61 = Instruction SADC SIndexedIndirect 0x61 2 6 0
+  OpBuild 0x71 = Instruction SADC SIndirectIndexed 0x71 2 5 1
+
   -- LDA
   OpBuild 0xA9 = Instruction SLDA SImmediate 0xA9 2 2 0
   OpBuild 0xA5 = Instruction SLDA SZeroPage  0xA5 2 3 0

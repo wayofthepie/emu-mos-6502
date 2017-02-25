@@ -28,9 +28,18 @@ decodeOpCode :: Word8 -> Executable
 decodeOpCode w = case w of
   -- ADC
   0x69 -> Executable (Instruction ADC Immediate :: OpBuild 0x69)
-
-  0xA2 -> Executable (Instruction LDX Immediate :: OpBuild 0xA2)
+  0x65 -> Executable (Instruction ADC ZeroPage :: OpBuild 0x65)
+  0x75 -> Executable (Instruction ADC ZeroPageX :: OpBuild 0x75)
+  0x6D -> Executable (Instruction ADC Absolute :: OpBuild 0x6D)
+  0x7D -> Executable (Instruction ADC AbsoluteX :: OpBuild 0x7D)
+  0x79 -> Executable (Instruction ADC AbsoluteY :: OpBuild 0x79)
+  0x61 -> Executable (Instruction ADC IndexedIndirect :: OpBuild 0x61)
+  0x71 -> Executable (Instruction ADC IndirectIndexed :: OpBuild 0x71)
+  -- LDA
   0xA5 -> Executable (Instruction LDA ZeroPage  :: OpBuild 0xA5)
+  -- LDX
+  0xA2 -> Executable (Instruction LDX Immediate :: OpBuild 0xA2)
+
   _ -> error ("Opcode " ++ show w ++ " is not implemented yet")
 
 
