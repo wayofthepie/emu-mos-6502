@@ -8,6 +8,7 @@ module Cpu where
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bits
+import qualified Data.IntMap as I
 import Data.Kind
 import Data.Proxy
 import qualified Data.Vector as V
@@ -16,23 +17,25 @@ import GHC.Word (Word8, Word16)
 import Numeric (showHex)
 
 
+newtype Machine a = Machine (State (a, Cpu) ()) -- ???
+
+newtype Ram = Ram (I.IntMap Word8)
+
+
+-- Temporary interface for memory.
+{-
+readMem :: Word16 -> Int ->State (Ram, a) (Maybe [Word8])
+readMem addr size =
+  get >>= \(Ram mem,_) -> pure $ go mem (fromIntegral addr) [] size
+ where
+  go :: I.IntMap Word8 -> Int -> [Word8] -> Int -> Maybe [Word8]
+  go m a ws 0 =  Just ws
+  go m a ws size = (lookup a m) >>= \w -> go m (a + 1) (w : ws) (size - 1)
+-}
 --------------------------------------------------------------------------------
 ---- * Cpu
 -- $cpu
--- The 6502 Cpu has 6 registers:
---
---  * 'programCounter' - the Program Counter.
-
-
-type Machine = State Cpu ()
-
-newtype Ram = Ram (V.Vector Word8)
-
-(!?) :: Ram -> Int -> Maybe Word8
-(Ram v) !? i = v V.!? i
-
-slice start size (Ram v) = V.slice start size v
-
+-- The 6502 has 6 registers.
 data Cpu = Cpu
   { _pc     :: PC  -- ^ Program counter
   , _x      :: X   -- ^ X register
@@ -42,28 +45,70 @@ data Cpu = Cpu
   , _accumulator :: Accumulator -- ^ Accumulator
   } deriving (Eq, Show)
 
+
+-- | The Program Counter.
 newtype PC = PC Word16 deriving (Eq, Show)
+
+-- | The Accumulator register.
 newtype Accumulator = Accumulator Word8 deriving (Eq, Show)
+
+-- | The X register.
 newtype X = X Word8 deriving (Eq, Show)
+
+-- | The Y register.
 newtype Y = Y Word8 deriving (Eq, Show)
+
+-- | The Status register.
 newtype Status = Status Word8 deriving (Eq, Show)
+
+-- | The Stack Pointer register.
 newtype SP = SP Word8 deriving (Eq, Show)
 
--- | All registers except the 'Status' register are instances of 'Register'.
-class Register a where
-  loadRegister :: a -> State Cpu ()
 
-  getRegister :: (Cpu -> a) -> State Cpu a
-  getRegister f = get >>= pure . f
+-- | All registers except the 'Status' register are instances of 'Register'.
+--
+-- To load a value into a register using 'loadRegister' within the monad:
+--
+-- @
+--  loadRegister (Accumulator 0x80)
+-- @
+--
+-- To get a value from a register using 'getRegister' within the monad:
+--
+-- @
+--  pc <- getRegister programCounter
+-- @
+class Register a where
+
+  loadRegister :: a -> State (b, Cpu) ()
+
+  getRegister :: (Cpu -> a) -> State (b, Cpu) a
+  getRegister f = get >>= pure . f . snd
+
+instance Register PC where
+  loadRegister pc = modify (\(a, cpu) -> (a, cpu { _pc = pc }))
 
 instance Register Accumulator where
-  loadRegister a = modify (\cpu -> cpu { _accumulator = a })
+  loadRegister acc = modify (\(a, cpu) -> (a, cpu { _accumulator = acc }))
+
 instance Register X where
-  loadRegister x = modify (\cpu -> cpu { _x = x })
+  loadRegister x = modify (\(a, cpu) -> (a, cpu { _x = x }))
+
 instance Register Y where
-  loadRegister y = modify (\cpu -> cpu { _y = y })
+  loadRegister y = modify (\(a, cpu) -> (a, cpu { _y = y }))
+
 instance Register SP where
-  loadRegister sp = modify (\cpu -> cpu { _sp = sp })
+  loadRegister sp = modify (\(a, cpu) -> (a, cpu { _sp = sp }))
+
+
+-- ** Accessors for registers
+programCounter = _pc
+accumulator    = _accumulator
+xRegister      = _x
+yRegister      = _y
+status         = _status
+stackPointer   = _sp
+
 
 -- | Initialize a Cpu.
 -- FIXME: Figure out how to correctly initialize.
@@ -105,14 +150,15 @@ deriving instance Show (StatusBit b)
 data StatusFlag = forall a. (KnownNat a) => StatusFlag (StatusBit a)
 deriving instance Show StatusFlag
 
+
 -- | Set the bit corresponding to the given 'StatusBit'.
-setFlag :: KnownNat a => StatusBit a -> State Cpu ()
+setFlag :: KnownNat a => StatusBit a -> State (b, Cpu) ()
 setFlag Unused = pure ()
 setFlag f = withStatusFlag f setBit
 
 
 -- | Clear the bit corresponding to the given 'StatusBit'.
-clearFlag :: KnownNat a => StatusBit a -> State Cpu ()
+clearFlag :: KnownNat a => StatusBit a -> State (b, Cpu) ()
 clearFlag Unused = pure ()
 clearFlag f = withStatusFlag f clearBit
 
@@ -125,13 +171,14 @@ isFlagSet f (Cpu _ _ _ (Status b) _ _) = testBit b (statusBit f)
 
 -- | With the given 'StatusBit' location and a function, update the status register with that
 -- function.
-withStatusFlag :: KnownNat a => StatusBit a -> (Word8 -> Int -> Word8) -> State Cpu ()
+withStatusFlag :: KnownNat a => StatusBit a -> (Word8 -> Int -> Word8) -> State (b, Cpu) ()
 withStatusFlag (flag :: StatusBit a) f = do
-  cpu <- get
+  (a, cpu) <- get
   let (Status byte) = _status cpu
-  put $ cpu { _status = Status $ f byte (fromIntegral (natVal (Proxy :: Proxy a))) }
+  put $ (a, cpu { _status = Status $ f byte (fromIntegral (natVal (Proxy :: Proxy a))) })
 
+
+-- | Return the bit location corresponding to the given 'StatusBit'.
 statusBit :: KnownNat a => StatusBit a -> Int
 statusBit (_ :: StatusBit a) = fromIntegral (natVal (Proxy :: Proxy a))
-
 

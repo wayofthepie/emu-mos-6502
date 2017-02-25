@@ -69,51 +69,49 @@ data AddressMode a where
   IndirectIndexed :: AddressMode SIndirectIndexed
 deriving instance Show (AddressMode a)
 
--- | 'Invariants' builds the invariants relating to an instruction. It takes the following
--- arguments:
---
---  [@singleton instruction type@]
---    A singleton type representing an instruction
---
-data Invariants :: Type -> Type -> Nat -> Nat -> Nat -> Nat -> Type where
-  Invariants :: (IsMnemonic m, IsAddr a)
+-- | 'Instruction' holds the invariants relating to an instruction.
+data Instruction :: Type -> Type -> Nat -> Nat -> Nat -> Nat -> Type where
+  Instruction :: (IsMnemonic m, IsAddr a)
              => Mnemonic m
              -> AddressMode a
-             -> Invariants m a op size cycles oops
-deriving instance Show (Invariants a b c d e f)
-type InstructionConstraints o s c p = (KnownNat o, KnownNat s, KnownNat c, KnownNat p)
+             -> Instruction m a op size cycles oops
 
+deriving instance Show (Instruction a b c d e f)
+
+-- | Build the invariants for the given operator. The information about each instruction is
+-- taken from http://obelisk.me.uk/6502/reference.html.
 type family OpBuild o = r | r -> o where
   -- LDA
-  OpBuild 0xA9 = Invariants SLDA SImmediate 0xA9 2 2 0
-  OpBuild 0xA5 = Invariants SLDA SZeroPage  0xA5 2 3 0
-  OpBuild 0xB5 = Invariants SLDA SZeroPageX 0xB5 2 4 0
-  OpBuild 0xAD = Invariants SLDA SAbsolute  0xAD 3 4 0
-  OpBuild 0xBD = Invariants SLDA SAbsoluteX 0xBD 3 4 1
-  OpBuild 0xB9 = Invariants SLDA SAbsoluteY 0xB9 3 4 1
-  OpBuild 0xA1 = Invariants SLDA SIndexedIndirect 0xA1 2 6 0
-  OpBuild 0xB1 = Invariants SLDA SIndirectIndexed 0xB1 2 5 1
+  OpBuild 0xA9 = Instruction SLDA SImmediate 0xA9 2 2 0
+  OpBuild 0xA5 = Instruction SLDA SZeroPage  0xA5 2 3 0
+  OpBuild 0xB5 = Instruction SLDA SZeroPageX 0xB5 2 4 0
+  OpBuild 0xAD = Instruction SLDA SAbsolute  0xAD 3 4 0
+  OpBuild 0xBD = Instruction SLDA SAbsoluteX 0xBD 3 4 1
+  OpBuild 0xB9 = Instruction SLDA SAbsoluteY 0xB9 3 4 1
+  OpBuild 0xA1 = Instruction SLDA SIndexedIndirect 0xA1 2 6 0
+  OpBuild 0xB1 = Instruction SLDA SIndirectIndexed 0xB1 2 5 1
 
   -- LDX
-  OpBuild 0xA2 = Invariants SLDX SImmediate 0xA2 2 2 0
-  OpBuild 0xA6 = Invariants SLDX SZeroPage  0xA6 2 3 0
-  OpBuild 0xB6 = Invariants SLDX SZeroPageY 0xB6 2 4 0
-  OpBuild 0xAE = Invariants SLDX SAbsolute  0xAE 3 4 0
-  OpBuild 0xBE = Invariants SLDX SAbsoluteY 0xBE 3 4 1
+  OpBuild 0xA2 = Instruction SLDX SImmediate 0xA2 2 2 0
+  OpBuild 0xA6 = Instruction SLDX SZeroPage  0xA6 2 3 0
+  OpBuild 0xB6 = Instruction SLDX SZeroPageY 0xB6 2 4 0
+  OpBuild 0xAE = Instruction SLDX SAbsolute  0xAE 3 4 0
+  OpBuild 0xBE = Instruction SLDX SAbsoluteY 0xBE 3 4 1
+
 
 data InstructionInfo = InstructionInfo
-  { _opCode      :: Word8
-  , _size :: Int
-  , _cycles      :: Int
-  , _oops        :: Int
+  { _opCode :: Word8
+  , _size   :: Int
+  , _cycles :: Int
+  , _oops   :: Int
   } deriving (Eq, Show)
 
-instructionInfo :: InstructionConstraints o s c p => Invariants mm a o s c p -> InstructionInfo
-instructionInfo (_ :: Invariants mm a o s c p) = InstructionInfo
+type InstructionConstraints o s c p = (KnownNat o, KnownNat s, KnownNat c, KnownNat p)
+
+instructionInfo :: InstructionConstraints o s c p => Instruction mm a o s c p -> InstructionInfo
+instructionInfo (_ :: Instruction mm a o s c p) = InstructionInfo
   (fromIntegral . natVal $ (Proxy :: Proxy o))
   (fromIntegral . natVal $ (Proxy :: Proxy s))
   (fromIntegral . natVal $ (Proxy :: Proxy c))
   (fromIntegral . natVal $ (Proxy :: Proxy p))
-
-
 

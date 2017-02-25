@@ -23,6 +23,7 @@ library
     , Executor
   build-depends:
     base >=4.9 && <4.10
+    , containers
     , mtl
     , vector
   hs-source-dirs:      src
@@ -58,6 +59,8 @@ benchmark bench-emu-mos6502
     -fprof-auto
   build-depends:
     base
+    , containers
+    , mtl
     , criterion
     , emu-mos6502
   default-language:    Haskell2010
