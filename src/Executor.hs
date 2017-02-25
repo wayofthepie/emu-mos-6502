@@ -26,12 +26,18 @@ deriving instance Show Executable
 
 decodeOpCode :: Word8 -> Executable
 decodeOpCode w = case w of
-  0xA2  -> Executable (Instruction LDX Immediate :: OpBuild 0xA2)
-  0xA5  -> Executable (Instruction LDA ZeroPage :: OpBuild 0xA5)
+  -- ADC
+  0x69 -> Executable (Instruction ADC Immediate :: OpBuild 0x69)
+
+  0xA2 -> Executable (Instruction LDX Immediate :: OpBuild 0xA2)
+  0xA5 -> Executable (Instruction LDA ZeroPage  :: OpBuild 0xA5)
+  _ -> error ("Opcode " ++ show w ++ " is not implemented yet")
+
 
 execute :: Executable -> State (Ram, Cpu) ()
 execute (Executable ins) = execute' ins
 
+-- Just testing.
 execute' :: (InstructionConstraints o s c e) => Instruction m a o s c e -> State (Ram, Cpu) ()
 execute' i@(Instruction m mode) = case m of
   LDA -> do
