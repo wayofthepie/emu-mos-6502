@@ -30,6 +30,8 @@ initRam = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 (!) :: Ram -> Int -> Word8
 (Ram ram) ! i = ram V.! i
 
+
+-- | Read a byte from memory using the given addressing mode.
 readWithMode :: AddressMode a -> State (Ram, Cpu) Word8
 readWithMode Immediate = do
   (ram, cpu) <- get
@@ -45,15 +47,8 @@ readWithMode ZeroPageX = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let (X x) = xRegister cpu
-  let addr :: Word8 = (ram ! fromIntegral (pc + 1)) + x
+  let addr = (ram ! fromIntegral (pc + 1)) + x
   pure $ ram ! fromIntegral addr
-
-
-writeMem :: [(Word16, Word8)] -> State (Ram, a) ()
-writeMem pairs = modify (\(ram, a) ->
-  (ram // pairs', a))
- where
-  pairs' = map (\(addr, val) -> (fromIntegral addr, val)) pairs
 
 
 --------------------------------------------------------------------------------

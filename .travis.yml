@@ -54,7 +54,8 @@ script:
   cabal configure --enable-tests --enable-benchmarks -v2 --ghc-options="-O0 -Werror"
   cabal build
   cabal check || [ "$CABALVER" == "1.16" ]
-  cabal test && cat dist/test/emu-mos6502-0.0.1-emu-mos6502-test.log
+  cabal test
+  cat dist/test/emu-mos6502-0.0.1-emu-mos6502-test.log
   cabal bench
   cabal sdist
   cabal copy
