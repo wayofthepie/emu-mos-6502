@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 module Executor where
 
---import Data.ByteString
+--import Data.ByteStringo
+import Control.Monad
 import Control.Monad.State
 import Data.Bits
 import Data.Maybe (maybe)
@@ -24,6 +26,16 @@ data Executable = forall m a o s c e.
   ) => Executable (Instruction m a o s c e)
 deriving instance Show Executable
 
+
+loadAndExecute prog = flip runState (initRam // prog, initCpu) $ do
+  (PC pc) <- getRegister programCounter
+  unless (fromIntegral pc == length prog) (exec pc)
+ where
+  exec pc = do
+    (ram, cpu) <- get
+    let inst = decodeOpCode (ram ! fromIntegral pc)
+    execute inst
+
 decodeOpCode :: Word8 -> Executable
 decodeOpCode w = case w of
   -- ADC
@@ -36,31 +48,39 @@ decodeOpCode w = case w of
   0x61 -> Executable (Instruction ADC IndexedIndirect :: OpBuild 0x61)
   0x71 -> Executable (Instruction ADC IndirectIndexed :: OpBuild 0x71)
   -- LDA
+  0xA9 -> Executable (Instruction LDA Immediate :: OpBuild 0xA9)
   0xA5 -> Executable (Instruction LDA ZeroPage  :: OpBuild 0xA5)
+  0xB5 -> Executable (Instruction LDA ZeroPageX :: OpBuild 0xB5)
+  0xAD -> Executable (Instruction LDA Absolute  :: OpBuild 0xAD)
+  0xBD -> Executable (Instruction LDA AbsoluteX :: OpBuild 0xBD)
+  0xB9 -> Executable (Instruction LDA AbsoluteY :: OpBuild 0xB9)
+  0xA1 -> Executable (Instruction LDA IndexedIndirect :: OpBuild 0xA1)
+  0xB1 -> Executable (Instruction LDA IndirectIndexed :: OpBuild 0xB1)
   -- LDX
   0xA2 -> Executable (Instruction LDX Immediate :: OpBuild 0xA2)
 
   _ -> error ("Opcode " ++ show w ++ " is not implemented yet")
 
-
+-- | Execute a single instruction.
 execute :: Executable -> State (Ram, Cpu) ()
 execute (Executable ins) = execute' ins
 
--- Just testing.
-execute' :: (InstructionConstraints o s c e) => Instruction m a o s c e -> State (Ram, Cpu) ()
-execute' i@(Instruction m mode) = case m of
-  LDA -> do
-    let ii = instructionInfo i
-    pc <- getRegister programCounter
-    loadRegister (Accumulator 0x90)
-    loadRegister (Accumulator 0x40)
-    loadRegister (PC 0x2004)
-    setFlag Sign
-    setFlag Zero
-  LDX -> do
-    let ii = instructionInfo i
-    loadRegister (Accumulator 0x80)
-    loadRegister (PC 0x0004)
-    setFlag Carry
-    setFlag Zero
+execute' :: InstructionConstraints o s c e => Instruction m a o s c e -> State (Ram, Cpu) ()
+execute' i@(Instruction mnem mode) = do
+  case mnem of
+    LDA -> do
+      byte <- readWithMode mode
+      loadRegister (Accumulator byte)
+      incPcBy instructionSize
+ where
+  info = instructionInfo i
+  instructionSize = instSize info
 
+
+-- | Is the given 'Word8' negative.
+isN :: Word8 -> Bool
+isN w = testBit w 7
+
+-- | Is the given 'Word8' zero.
+isZ :: Word8 -> Bool
+isZ w = w == 0

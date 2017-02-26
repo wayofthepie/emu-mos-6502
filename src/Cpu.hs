@@ -8,7 +8,6 @@ module Cpu where
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bits
-import qualified Data.IntMap as I
 import Data.Kind
 import Data.Proxy
 import qualified Data.Vector as V
@@ -16,22 +15,47 @@ import GHC.TypeLits
 import GHC.Word (Word8, Word16)
 import Numeric (showHex)
 
+import Cpu.Instruction
 
 newtype Machine a = Machine (State (a, Cpu) ()) -- ???
 
-newtype Ram = Ram (I.IntMap Word8)
+newtype Ram = Ram (V.Vector Word8) deriving Show
+
+initRam :: Ram
+initRam = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
+
+(//) :: Ram -> [(Int, Word8)] -> Ram
+(Ram ram) // l = Ram (ram V.// l)
+
+(!) :: Ram -> Int -> Word8
+(Ram ram) ! i = ram V.! i
+
+readWithMode :: AddressMode a -> State (Ram, Cpu) Word8
+readWithMode Immediate = do
+  (ram, cpu) <- get
+  let (PC pc) = programCounter cpu
+  pure $ ram ! fromIntegral (pc + 1)
+
+readWithMode ZeroPage = do
+  (ram, cpu) <- get
+  let (PC pc) = programCounter cpu
+  pure $ ram ! fromIntegral (ram ! fromIntegral (pc + 1))
+
+readWithMode ZeroPageX = do
+  (ram, cpu) <- get
+  let (PC pc) = programCounter cpu
+  let (X x) = xRegister cpu
+  let addr :: Word8 = (ram ! fromIntegral (pc + 1)) + x
+  pure $ ram ! fromIntegral addr
 
 
--- Temporary interface for memory.
-{-
-readMem :: Word16 -> Int ->State (Ram, a) (Maybe [Word8])
-readMem addr size =
-  get >>= \(Ram mem,_) -> pure $ go mem (fromIntegral addr) [] size
+writeMem :: [(Word16, Word8)] -> State (Ram, a) ()
+writeMem pairs = modify (\(ram, a) ->
+  (ram // pairs', a))
  where
-  go :: I.IntMap Word8 -> Int -> [Word8] -> Int -> Maybe [Word8]
-  go m a ws 0 =  Just ws
-  go m a ws size = (lookup a m) >>= \w -> go m (a + 1) (w : ws) (size - 1)
--}
+  pairs' = map (\(addr, val) -> (fromIntegral addr, val)) pairs
+
+
 --------------------------------------------------------------------------------
 ---- * Cpu
 -- $cpu
@@ -43,8 +67,16 @@ data Cpu = Cpu
   , _status :: Status  -- ^ Status register
   , _sp     :: SP   -- ^ Stack pointer
   , _accumulator :: Accumulator -- ^ Accumulator
-  } deriving (Eq, Show)
+  } deriving Eq
 
+instance Show Cpu where
+  show (Cpu (PC pc) (X x) (Y y) (Status stat) (SP sp) (Accumulator acc)) =
+    "Cpu { _pc = " ++ showHex pc
+      ", x = " ++ showHex x
+      ", y = " ++ showHex y
+      ", status = " ++ showHex stat
+      ", sp = " ++ showHex sp
+      ", acc = " ++ showHex acc ""
 
 -- | The Program Counter.
 newtype PC = PC Word16 deriving (Eq, Show)
@@ -99,6 +131,14 @@ instance Register Y where
 
 instance Register SP where
   loadRegister sp = modify (\(a, cpu) -> (a, cpu { _sp = sp }))
+
+-- Helpers
+
+-- | Increment the program counter ('PC') register by the number passed.
+incPcBy :: Int -> State (a, Cpu) ()
+incPcBy i = do
+  (PC pc) <- getRegister programCounter
+  loadRegister (PC (pc + fromIntegral i))
 
 
 -- ** Accessors for registers

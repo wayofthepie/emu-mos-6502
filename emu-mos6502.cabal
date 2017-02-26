@@ -38,6 +38,8 @@ test-suite emu-mos6502-test
   build-depends:
     base
     , hspec
+    , mtl
+    , vector
     , tasty
     , tasty-hunit
     , tasty-hspec
