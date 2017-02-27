@@ -25,10 +25,10 @@ initRam :: Ram
 initRam = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 
 (//) :: Ram -> [(Int, Word8)] -> Ram
-(Ram ram) // l = Ram (ram V.// l)
+(Ram ram) // idxValList = Ram (ram V.// idxValList)
 
 (!) :: Ram -> Int -> Word8
-(Ram ram) ! i = ram V.! i
+(Ram ram) ! idx = ram V.! idx
 
 
 -- | Read a byte from memory using the given addressing mode.
@@ -199,9 +199,12 @@ clearFlag f = withStatusFlag f clearBit
 
 
 -- | True if the given flag is set in the given 'Status' register.
-isFlagSet :: KnownNat a => StatusBit a -> Cpu -> Bool
-isFlagSet Unused _ = True
-isFlagSet f (Cpu _ _ _ (Status b) _ _) = testBit b (statusBit f)
+isFlagSet :: KnownNat a => StatusBit a -> State (b, Cpu) Bool
+isFlagSet Unused = pure True
+isFlagSet f = do
+  (_, cpu) <- get
+  let (Status byte) = _status cpu
+  pure $ testBit byte (statusBit f)
 
 
 -- | With the given 'StatusBit' location and a function, update the status register with that

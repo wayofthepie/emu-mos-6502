@@ -27,27 +27,27 @@ readWithModeSpec = do
 
     describe "Immediate" $
       it "should return byte at PC + 1" $
-        let (w, _) = runState (readWithMode Immediate) (genProg,initCpu)
-        in w `shouldBe` 0xDE
+        let (byte, _) = runState (readWithMode Immediate) (genProg,initCpu)
+        in byte `shouldBe` 0xDE
 
     describe "ZeroPage" $
       it "should return the value at the address pointed to by PC + 1" $
-        let (w, _) = runState (readWithMode ZeroPage) (genProg, initCpu)
-        in w `shouldBe` 0xF2
+        let (byte, _) = runState (readWithMode ZeroPage) (genProg, initCpu)
+        in byte `shouldBe` 0xF2
 
     describe "ZeroPageX" $ do
       it "should return the value at the address built with the value at the address PC + 1, added to the X register" $
         let x = 0x01
-            (w, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
-        in  w `shouldBe` 0xA1
+            (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
+        in  byte `shouldBe` 0xA1
 
       -- With ZeroPageX the address of the value is calculated by:
       --  1. Getting the 8-bit zero page address from the instruction (mem[pc + 1]).
       --  2. Adding the value of the x register to it.
       it "should wrap around if (mem[pc + 1] + X > 0xFF)" $
         let x = 0x23
-            (w, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
-        in  w `shouldBe` 0xDE
+            (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
+        in  byte `shouldBe` 0xDE
 
 
 -- Initialize the Cpu setting the X register

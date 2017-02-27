@@ -61,26 +61,27 @@ decodeOpCode w = case w of
 
   _ -> error ("Opcode " ++ show w ++ " is not implemented yet")
 
+
 -- | Execute a single instruction.
 execute :: Executable -> State (Ram, Cpu) ()
 execute (Executable ins) = execute' ins
 
 execute' :: InstructionConstraints o s c e => Instruction m a o s c e -> State (Ram, Cpu) ()
-execute' i@(Instruction mnem mode) = do
+execute' inst@(Instruction mnem mode) = do
   case mnem of
     LDA -> do
       byte <- readWithMode mode
       loadRegister (Accumulator byte)
       incPcBy instructionSize
  where
-  info = instructionInfo i
+  info = instructionInfo inst
   instructionSize = instSize info
 
 
 -- | Is the given 'Word8' negative.
-isN :: Word8 -> Bool
-isN w = testBit w 7
+isNegative :: Word8 -> Bool
+isNegative w = testBit w 7
 
 -- | Is the given 'Word8' zero.
-isZ :: Word8 -> Bool
-isZ w = w == 0
+isZero :: Word8 -> Bool
+isZero w = w == 0
