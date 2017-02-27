@@ -27,7 +27,7 @@ data Executable = forall m a o s c e.
 deriving instance Show Executable
 
 
-loadAndExecute prog = flip runState (initRam // prog, initCpu) $ do
+loadAndExecute prog = flip runState (initRamZero // prog, initCpu) $ do
   (PC pc) <- getRegister programCounter
   unless (fromIntegral pc == length prog) (exec pc)
  where

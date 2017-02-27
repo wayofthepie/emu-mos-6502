@@ -49,11 +49,23 @@ readWithModeSpec = do
             (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
         in  byte `shouldBe` 0xDE
 
+    describe "ZeroPageY" $ do
+      it "should return the value at the address built with the value at the address PC + 1, added to the Y register" $
+        let y = 0x23
+            (byte, _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
+        in  byte `shouldBe` 0xDE
 
--- Initialize the Cpu setting the X register
+      it "should wrap around if (mem[pc + 1] + X > 0xFF)" $
+        let y = 0x23
+            (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForY y)
+        in  byte `shouldBe` 0xDE
+
+
+-- Initialize the Cpu setting the register
 initCpuForX x = initCpu { _x = (X x) }
+initCpuForY y = initCpu { _y = (Y y) }
 
 genProg :: Ram
-genProg = initRam // [(0x0000,0xA9),(0x0001,0xDE),(0x00DE,0xF2),(0x00DF,0xA1)]
+genProg = initRamZero // [(0x0000,0xA9),(0x0001,0xDE),(0x00DE,0xF2),(0x00DF,0xA1)]
 
 

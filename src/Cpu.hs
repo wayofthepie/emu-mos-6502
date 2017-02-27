@@ -19,40 +19,90 @@ import Cpu.Instruction
 
 newtype Machine a = Machine (State (a, Cpu) ()) -- ???
 
+
+--------------------------------------------------------------------------------
+-- * Memory
+--------------------------------------------------------------------------------
 newtype Ram = Ram (V.Vector Word8) deriving Show
 
-initRam :: Ram
-initRam = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 
-(//) :: Ram -> [(Int, Word8)] -> Ram
-(Ram ram) // idxValList = Ram (ram V.// idxValList)
-
-(!) :: Ram -> Int -> Word8
-(Ram ram) ! idx = ram V.! idx
+-- | Initialize all memory to zero.
+initRamZero :: Ram
+initRamZero = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 
 
--- | Read a byte from memory using the given addressing mode.
+-- | Load a list of address/value pairs into memory. e.g. load prog:
+--
+-- @
+-- let prog = [(0x000,0xA9),(0x0001, 0xDE)] in
+-- flip runState (initRamZero // prog, initCpu) $ do
+--   ... work with loaded program ...
+-- @
+(//) :: Ram -> [(Word16, Word8)] -> Ram
+(Ram ram) // idxValList =
+  Ram (ram V.// (fmap (\(i,v) -> (fromIntegral i, v)) idxValList))
+
+
+-- | Retrieve the byte at the given index. e.g. within the monad, get the byte at address:
+--
+-- @
+-- let prog = [(0x000,0xA9),(0x0001, 0xDE)] in
+-- flip runState (initRamZero // prog, initCpu) $ do
+--   (ram, _) <- get
+--   byte <- ram ! 0x0001
+--   ... work with byte ...
+-- @
+(!) :: Ram -> Word16 -> Word8
+(Ram ram) ! idx = ram V.! (fromIntegral idx)
+
+
+-- | Read a byte from memory using the given addressing mode. e.g.
+--
+-- @
+-- let prog = [(0x0000,0xA9),(0x0001,0xDE),(0x00DE,0xF2),(0x00DF,0xA1)] in
+-- flip runState (initRamZero // prog, initCpu) $ do
+--   byte <- readWithMode ZeroPage -- byte here is 0xF2
+--   ... work with byte ...
+-- @
+-- In the above example, the program counter ('PC') is zero, so reading with 'ZeroPage'
+-- addressing will give the byte whos address is @ram ! (pc + 1)@, this address is 0xDE,
+-- following that address we get the value 0xF2.
+
 readWithMode :: AddressMode a -> State (Ram, Cpu) Word8
 readWithMode Immediate = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
-  pure $ ram ! fromIntegral (pc + 1)
+  pure $ ram ! (pc + 1)
 
 readWithMode ZeroPage = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
-  pure $ ram ! fromIntegral (ram ! fromIntegral (pc + 1))
+  pure $ ram ! fromIntegral (ram ! (pc + 1))
 
 readWithMode ZeroPageX = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let (X x) = xRegister cpu
-  let addr = (ram ! fromIntegral (pc + 1)) + x
+  readZeroPageRegister ram pc x
+
+readWithMode ZeroPageY = do
+  (ram, cpu) <- get
+  let (PC pc) = programCounter cpu
+  let (Y y) = yRegister cpu
+  readZeroPageRegister ram pc y
+
+
+-- | Read from mem using the given 'Word8' value from the X or Y register. This is used for
+-- 'ZeropageX' or 'ZeroPageY' reads.
+readZeroPageRegister :: Ram -> Word16 -> Word8 -> State (Ram, b) Word8
+readZeroPageRegister ram pc regVal = do
+  let addr = (ram ! (pc + 1)) + regVal
   pure $ ram ! fromIntegral addr
 
 
 --------------------------------------------------------------------------------
----- * Cpu
+-- * Cpu
+--------------------------------------------------------------------------------
 -- $cpu
 -- The 6502 has 6 registers.
 data Cpu = Cpu
@@ -71,22 +121,28 @@ instance Show Cpu where
       ", y = " ++ showHex y
       ", status = " ++ showHex stat
       ", sp = " ++ showHex sp
-      ", acc = " ++ showHex acc ""
+      ", acc = " ++ showHex acc " }"
+
 
 -- | The Program Counter.
 newtype PC = PC Word16 deriving (Eq, Show)
 
+
 -- | The Accumulator register.
 newtype Accumulator = Accumulator Word8 deriving (Eq, Show)
+
 
 -- | The X register.
 newtype X = X Word8 deriving (Eq, Show)
 
+
 -- | The Y register.
 newtype Y = Y Word8 deriving (Eq, Show)
 
+
 -- | The Status register.
 newtype Status = Status Word8 deriving (Eq, Show)
+
 
 -- | The Stack Pointer register.
 newtype SP = SP Word8 deriving (Eq, Show)
@@ -127,6 +183,7 @@ instance Register Y where
 instance Register SP where
   loadRegister sp = modify (\(a, cpu) -> (a, cpu { _sp = sp }))
 
+
 -- Helpers
 
 -- | Increment the program counter ('PC') register by the number passed.
@@ -161,13 +218,16 @@ initCpu = Cpu
 -- The status register has 7 flags each corresponding to a single bit in a
 -- byte - with bit 5 unused and always set.
 
+
 -- | Builds a 'Status' from a 'Word8', setting bit 5.
 initStatus :: Word8 -> Status
 initStatus b = Status $ setBit b 5
 
+
 -- | The 'Word8' corresponding to 'Status'.
 statusBits :: Status -> Word8
 statusBits (Status b) = b
+
 
 -- | Relates status flags to their corresponding bit locations.
 data StatusBit (b :: Nat) where
@@ -180,6 +240,7 @@ data StatusBit (b :: Nat) where
   Overflow      :: StatusBit 6
   Sign          :: StatusBit 7
 deriving instance Show (StatusBit b)
+
 
 -- | Unifies all of our status register flags under a single type.
 data StatusFlag = forall a. (KnownNat a) => StatusFlag (StatusBit a)
