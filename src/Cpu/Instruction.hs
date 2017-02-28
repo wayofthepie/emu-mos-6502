@@ -16,9 +16,8 @@ import GHC.Word (Word8, Word16)
 
 -- Singleton types for mnemonics.
 data SADC; data SAND; data SASL
-
 data SLDA; data SLDX
-
+data SSTA
 
 -- | Singleton types for addressing modes.
 data SImplied
@@ -52,17 +51,19 @@ class IsMnemonic a
 instance IsMnemonic SADC
 instance IsMnemonic SLDA
 instance IsMnemonic SLDX
-
+instance IsMnemonic SSTA
 
 data Mnemonic a where
 
   -- | Add the contents of a memory location to the accumulator together with the carry bit.
-  -- If overflow occues, sets the carry bit, this enables multiple byte addition to be
+  -- If overflow occurs, sets the carry bit, this enables multiple byte addition to be
   -- performed.
   ADC :: Mnemonic SADC
   LDA :: Mnemonic SLDA
   LDX :: Mnemonic SLDX
 
+  -- | Store the contents of the 'Accumulator' into memory.
+  STA :: Mnemonic SSTA
 deriving instance Show (Mnemonic a)
 
 data AddressMode a where
@@ -86,7 +87,7 @@ data Instruction :: Type -> Type -> Nat -> Nat -> Nat -> Nat -> Type where
              -> AddressMode a
              -> Instruction m a op size cycles oops
 
-deriving instance Show (Instruction a b c d e f)
+deriving instance Show (Instruction m a o s c oops)
 
 -- | Build the invariants for the given operator. The information about each instruction is
 -- taken from http://obelisk.me.uk/6502/reference.html.
@@ -118,6 +119,14 @@ type family OpBuild o = r where
   OpBuild 0xAE = Instruction SLDX SAbsolute  0xAE 3 4 0
   OpBuild 0xBE = Instruction SLDX SAbsoluteY 0xBE 3 4 1
 
+  -- STA
+  OpBuild 0x85 = Instruction SSTA SZeroPage  0x85 2 3 0
+  OpBuild 0x95 = Instruction SSTA SZeroPageX 0x95 2 4 0
+  OpBuild 0x8D = Instruction SSTA SAbsolute  0x8D 3 4 0
+  OpBuild 0x9D = Instruction SSTA SAbsoluteX  0x9D 3 5 0
+  OpBuild 0x99 = Instruction SSTA SAbsoluteY  0x99 3 5 0
+  OpBuild 0x81 = Instruction SSTA SIndexedIndirect 0x81 2 6 0
+  OpBuild 0x91 = Instruction SSTA SIndirectIndexed 0x91 2 6 0
 
 data InstructionInfo = InstructionInfo
   { _opCode :: Word8

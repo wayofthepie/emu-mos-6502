@@ -21,7 +21,19 @@ import Test.Tasty.QuickCheck as QC
 spec :: Spec
 spec = do
   readWithModeSpec
+  writeWithModeSpec
 
+-- Initialize the Cpu setting the register
+initCpuForX x = initCpu { _x = (X x) }
+initCpuForY y = initCpu { _y = (Y y) }
+
+genProg :: Ram
+genProg = initRamZero // [(0x0000,0xA9),(0x0001,0xDE),(0x0002, 0xEA), (0x00DE,0xF2),(0x00DF,0xA1)]
+
+
+------------------------------------------------------------------------------------------
+-- Read
+------------------------------------------------------------------------------------------
 readWithModeSpec = do
   describe "readWithMode" $ do
 
@@ -51,21 +63,27 @@ readWithModeSpec = do
 
     describe "ZeroPageY" $ do
       it "should return the value at the address built with the value at the address PC + 1, added to the Y register" $
+        let y = 0x01
+            (byte, _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
+        in  byte `shouldBe` 0xA1
+
+      it "should wrap around if (mem[pc + 1] + Y > 0xFF)" $
         let y = 0x23
             (byte, _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
         in  byte `shouldBe` 0xDE
 
-      it "should wrap around if (mem[pc + 1] + X > 0xFF)" $
-        let y = 0x23
-            (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForY y)
-        in  byte `shouldBe` 0xDE
+
+------------------------------------------------------------------------------------------
+-- Write
+------------------------------------------------------------------------------------------
+writeWithModeSpec = do
+  describe "writeWithMode" $ do
+    describe "ZeroPage" $
+      it "should write to the address given by the value at pc + 1" $
+        let byte = 0x05
+            (_, (ram, _)) = runState (writeWithMode ZeroPage byte) (genProg, initCpu)
+        in  (ram ! 0xDE) `shouldBe` byte
 
 
--- Initialize the Cpu setting the register
-initCpuForX x = initCpu { _x = (X x) }
-initCpuForY y = initCpu { _y = (Y y) }
-
-genProg :: Ram
-genProg = initRamZero // [(0x0000,0xA9),(0x0001,0xDE),(0x00DE,0xF2),(0x00DF,0xA1)]
 
 
