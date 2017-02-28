@@ -58,6 +58,14 @@ decodeOpCode w = case w of
   0xB1 -> Executable (Instruction LDA IndirectIndexed :: OpBuild 0xB1)
   -- LDX
   0xA2 -> Executable (Instruction LDX Immediate :: OpBuild 0xA2)
+  -- STA
+  0x85 -> Executable (Instruction STA ZeroPage  :: OpBuild 0x85)
+  0x95 -> Executable (Instruction STA ZeroPageX :: OpBuild 0x95)
+  0x8D -> Executable (Instruction STA Absolute  :: OpBuild 0x8D)
+  0x9D -> Executable (Instruction STA AbsoluteX :: OpBuild 0x9D)
+  0x99 -> Executable (Instruction STA AbsoluteY :: OpBuild 0x99)
+  0x81 -> Executable (Instruction STA IndexedIndirect :: OpBuild 0x81)
+  0x91 -> Executable (Instruction STA IndirectIndexed :: OpBuild 0x91)
 
   _ -> error ("Opcode " ++ show w ++ " is not implemented yet")
 

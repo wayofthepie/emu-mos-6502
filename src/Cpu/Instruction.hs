@@ -16,9 +16,8 @@ import GHC.Word (Word8, Word16)
 
 -- Singleton types for mnemonics.
 data SADC; data SAND; data SASL
-
 data SLDA; data SLDX
-
+data SSTA
 
 -- | Singleton types for addressing modes.
 data SImplied
@@ -52,7 +51,7 @@ class IsMnemonic a
 instance IsMnemonic SADC
 instance IsMnemonic SLDA
 instance IsMnemonic SLDX
-
+instance IsMnemonic SSTA
 
 data Mnemonic a where
 
@@ -62,7 +61,7 @@ data Mnemonic a where
   ADC :: Mnemonic SADC
   LDA :: Mnemonic SLDA
   LDX :: Mnemonic SLDX
-
+  STA :: Mnemonic SSTA
 deriving instance Show (Mnemonic a)
 
 data AddressMode a where
@@ -118,6 +117,14 @@ type family OpBuild o = r where
   OpBuild 0xAE = Instruction SLDX SAbsolute  0xAE 3 4 0
   OpBuild 0xBE = Instruction SLDX SAbsoluteY 0xBE 3 4 1
 
+  -- STA
+  OpBuild 0x85 = Instruction SSTA SZeroPage  0x85 2 3 0
+  OpBuild 0x95 = Instruction SSTA SZeroPageX 0x95 2 4 0
+  OpBuild 0x8D = Instruction SSTA SAbsolute  0x8D 3 4 0
+  OpBuild 0x9D = Instruction SSTA SAbsoluteX  0x9D 3 5 0
+  OpBuild 0x99 = Instruction SSTA SAbsoluteY  0x99 3 5 0
+  OpBuild 0x81 = Instruction SSTA SIndexedIndirect 0x81 2 6 0
+  OpBuild 0x91 = Instruction SSTA SIndirectIndexed 0x91 2 6 0
 
 data InstructionInfo = InstructionInfo
   { _opCode :: Word8

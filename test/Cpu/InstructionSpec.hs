@@ -31,7 +31,6 @@ ii opCode size cycles oops = InstructionInfo
 
 instructionInvariantsSpec = do
   describe "instructionInfo" $ do
-    -- LDA
-    it "should build an InstructionInfo value with correct constraints" $
+    it "should build an LDA Immediate InstructionInfo value with correct constraints" $
       instructionInfo (Instruction LDA Immediate :: OpBuild 0xA9)  `shouldBe` (ii 0xA9 2 2 0)
 

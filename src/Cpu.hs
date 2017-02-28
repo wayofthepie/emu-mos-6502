@@ -96,9 +96,16 @@ readWithMode ZeroPageY = do
 -- 'ZeropageX' or 'ZeroPageY' reads.
 readZeroPageRegister :: Ram -> Word16 -> Word8 -> State (Ram, b) Word8
 readZeroPageRegister ram pc regVal = do
-  let addr = (ram ! (pc + 1)) + regVal
-  pure $ ram ! fromIntegral addr
+  let addr = fromIntegral $ (ram ! (pc + 1)) + regVal
+  pure $ ram !  addr
 
+
+writeWithMode :: AddressMode a -> Word8 -> State (Ram, Cpu) ()
+writeWithMode ZeroPage byte =  do
+  (ram, cpu) <- get
+  let (PC pc) = programCounter cpu
+  let addr = fromIntegral $ ram ! (pc + 1)
+  put (ram // [(addr, byte)], cpu)
 
 --------------------------------------------------------------------------------
 -- * Cpu
