@@ -29,15 +29,12 @@ deriving instance Show Executable
 -- For testing. Load prog into memory, point program counter at /pc/ and execute.
 loadAndExecute prog pc = flip runState (initRamZero // prog, initCpuForPc pc) $ do
   (PC pc) <- getRegister programCounter
-  let initPc = pc
-  exec initPc pc
+  exec pc pc
  where
   exec initPc pc = do
-    (ram, _) <- get
-    let inst = decodeOpCode (ram ! fromIntegral pc)
-    execute inst
-    (PC next) <- getRegister programCounter
-    unless (next >= initPc + (fromIntegral . length $ prog)) (exec initPc next)
+    get >>= \(ram,_) -> execute (decodeOpCode (ram ! fromIntegral pc))
+    getRegister programCounter >>= \(PC next) ->
+      unless (next >= initPc + (fromIntegral . length $ prog)) (exec initPc next)
 
 decodeOpCode :: Word8 -> Executable
 decodeOpCode w = case w of
