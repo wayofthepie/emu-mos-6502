@@ -130,6 +130,13 @@ writeWithMode ZeroPageY byte = do
   (Y y) <- getRegister yRegister
   writeZeroPageRegister y byte
 
+writeWithMode Absolute byte = do
+  (ram, cpu) <- get
+  (PC pc) <- getRegister programCounter
+  let low = fromIntegral $ ram ! (pc + 1)
+  let high = shiftLeftEight $ ram ! (pc + 2)
+  let addr = high + low
+  put (ram // [(addr, byte)], cpu)
 
 -- | Write to memory using the semantics of 'ZeroPageX' and 'ZeroPageY', with the register
 -- value to use given with /regVal/.
@@ -139,6 +146,11 @@ writeZeroPageRegister regVal byte = do
   (PC pc) <- getRegister programCounter
   let addr = fromIntegral $ (ram ! (pc + 1)) + regVal
   put (ram // [(addr, byte)], cpu)
+
+
+-- | Shifts a byte left 8 bits, turning a 'Word8' into a 'Word16'.
+shiftLeftEight :: Word8 -> Word16
+shiftLeftEight w = (fromIntegral w :: Word16) `shiftL` 8
 
 
 --------------------------------------------------------------------------------

@@ -17,7 +17,6 @@ import GHC.Word (Word8, Word16)
 import Cpu
 import Cpu.Instruction
 
-import Debug.Trace
 
 -- | Wraps an instruction so we can build and pass around 'Instruction's.
 data Executable = forall m a o s c e.
@@ -87,13 +86,14 @@ execute' :: InstructionConstraints o s c e => Instruction m a o s c e -> State (
 execute' inst@(Instruction mnem mode) =
   case mnem of
     LDA -> do
-      (byte,crossed) <- traceShow "LDA" $ readWithMode mode
+      (byte,crossed) <- readWithMode mode
       loadRegister (Accumulator byte)
       pure crossed
     STA -> do
-      (Accumulator byte) <- traceShow "STA" $ getRegister accumulator
+      (Accumulator byte) <- getRegister accumulator
       writeWithMode mode byte
       pure False
+
 
 -- | Is the given 'Word8' negative.
 isNegative :: Word8 -> Bool

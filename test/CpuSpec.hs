@@ -28,7 +28,11 @@ initCpuForX x = initCpu { _x = (X x) }
 initCpuForY y = initCpu { _y = (Y y) }
 
 genProg :: Ram
-genProg = initRamZero // [(0x0000,0xA9),(0x0001,0xDE),(0x0002, 0xEA), (0x00DE,0xF2),(0x00DF,0xA1)]
+genProg = initRamZero //
+  [ (0x0000, 0xA9), (0x0001,0xDE) -- LDA ZeroPage
+  , (0x0002, 0xEA), (0x00DE,0xF2),(0x00DF,0xA1)
+  , (0x0050, 0xAD), (0x0051, 0xF2), (0x0052, 0x33), (0x33F2, 0x00)
+  ]
 
 
 ------------------------------------------------------------------------------------------
@@ -112,4 +116,9 @@ writeWithModeSpec = do
         let y = 0x23
             (_, (ram,_)) =  run y
         in  (ram ! 0x01) `shouldBe` byte
+
+    describe "Absolute" $
+      it "should read address high and low bytes in correct order" $
+        let (_, (ram, _)) = runState (writeWithMode Absolute byte) (genProg, initCpu { _pc = (PC 0x50) })
+        in  (ram ! 0x33F2) `shouldBe` byte
 
