@@ -23,6 +23,7 @@ newtype Machine a = Machine (State (a, Cpu) ()) -- ???
 --------------------------------------------------------------------------------
 -- * Memory
 --------------------------------------------------------------------------------
+
 newtype Ram = Ram (V.Vector Word8) deriving Show
 
 
@@ -69,6 +70,10 @@ initRamZero = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 -- addressing will give the byte whos address is @ram ! (pc + 1)@, this address is 0xDE,
 -- following that address we get the value 0xF2. There cannot be a page boundary cross with
 -- any type of 'ZeroPage' addressing, so /crossed/ will be false.
+--
+-- Calling 'readWithMode' implies the program counter is pointing at the address of the
+-- currently executing operation. So the first address 'readWithMode' will look at is 'PC'
+-- + 1 .
 readWithMode :: AddressMode a -> State (Ram, Cpu) (Word8, Bool)
 readWithMode Immediate = do
   (ram, cpu) <- get
@@ -105,6 +110,11 @@ readZeroPageRegister ram pc regVal = do
   pure $ ram !  addr
 
 
+-- | Write to a memory address using the given addressing mode.
+--
+--Calling 'writeWithMode' implies the program counter is pointing at the address of the
+-- currently executing operation. So the first address 'writeWithMode' will look at is 'PC'
+-- + 1 .
 writeWithMode :: AddressMode a -> Word8 -> State (Ram, Cpu) ()
 writeWithMode ZeroPage byte =  do
   (ram, cpu) <- get
