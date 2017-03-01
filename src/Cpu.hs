@@ -56,40 +56,45 @@ initRamZero = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 (Ram ram) ! idx = ram V.! (fromIntegral idx)
 
 
--- | Read a byte from memory using the given addressing mode. e.g.
+-- | Read a byte from memory using the given addressing mode. Returns a tuple containing the
+-- byte read whether the page boundary was crossed. e.g.
 --
 -- @
 -- let prog = [(0x0000,0xA9),(0x0001,0xDE),(0x00DE,0xF2),(0x00DF,0xA1)] in
 -- flip runState (initRamZero // prog, initCpu) $ do
---   byte <- readWithMode ZeroPage -- byte here is 0xF2
---   ... work with byte ...
+--   (byte, crossed) <- readWithMode ZeroPage -- byte here is 0xF2
+--   ... work with byte/crossed ...
 -- @
 -- In the above example, the program counter ('PC') is zero, so reading with 'ZeroPage'
 -- addressing will give the byte whos address is @ram ! (pc + 1)@, this address is 0xDE,
--- following that address we get the value 0xF2.
-
-readWithMode :: AddressMode a -> State (Ram, Cpu) Word8
+-- following that address we get the value 0xF2. There cannot be a page boundary cross with
+-- any type of 'ZeroPage' addressing, so /crossed/ will be false.
+readWithMode :: AddressMode a -> State (Ram, Cpu) (Word8, Bool)
 readWithMode Immediate = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
-  pure $ ram ! (pc + 1)
+  let byte = ram ! (pc + 1)
+  pure (byte, False)
 
 readWithMode ZeroPage = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
-  pure $ ram ! fromIntegral (ram ! (pc + 1))
+  let byte = ram ! fromIntegral (ram ! (pc + 1))
+  pure (byte, False)
 
 readWithMode ZeroPageX = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let (X x) = xRegister cpu
-  readZeroPageRegister ram pc x
+  byte <- readZeroPageRegister ram pc x
+  pure (byte, False)
 
 readWithMode ZeroPageY = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let (Y y) = yRegister cpu
-  readZeroPageRegister ram pc y
+  byte <- readZeroPageRegister ram pc y
+  pure (byte, False)
 
 
 -- | Read from mem using the given 'Word8' value from the X or Y register. This is used for
@@ -105,6 +110,13 @@ writeWithMode ZeroPage byte =  do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let addr = fromIntegral $ ram ! (pc + 1)
+  put (ram // [(addr, byte)], cpu)
+
+writeWithMode ZeroPageX byte = do
+  (ram, cpu) <- get
+  (PC pc) <- getRegister programCounter
+  (X x) <- getRegister xRegister
+  let addr = fromIntegral $ (ram ! (pc + 1)) + x
   put (ram // [(addr, byte)], cpu)
 
 --------------------------------------------------------------------------------
@@ -213,6 +225,14 @@ stackPointer   = _sp
 -- FIXME: Figure out how to correctly initialize.
 initCpu = Cpu
   (PC 0x0000)
+  (X 0x00)
+  (Y 0x00)
+  (initStatus 0x00)
+  (SP 0x00)
+  (Accumulator 0x00)
+
+initCpuForPc pc = Cpu
+  (PC pc)
   (X 0x00)
   (Y 0x00)
   (initStatus 0x00)

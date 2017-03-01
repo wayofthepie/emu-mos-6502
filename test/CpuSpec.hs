@@ -39,18 +39,18 @@ readWithModeSpec = do
 
     describe "Immediate" $
       it "should return byte at PC + 1" $
-        let (byte, _) = runState (readWithMode Immediate) (genProg,initCpu)
+        let ((byte,_), _) = runState (readWithMode Immediate) (genProg,initCpu)
         in byte `shouldBe` 0xDE
 
     describe "ZeroPage" $
       it "should return the value at the address pointed to by PC + 1" $
-        let (byte, _) = runState (readWithMode ZeroPage) (genProg, initCpu)
+        let ((byte,_), _) = runState (readWithMode ZeroPage) (genProg, initCpu)
         in byte `shouldBe` 0xF2
 
     describe "ZeroPageX" $ do
       it "should return the value at the address built with the value at the address PC + 1, added to the X register" $
         let x = 0x01
-            (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
+            ((byte,_), _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
         in  byte `shouldBe` 0xA1
 
       -- With ZeroPageX the address of the value is calculated by:
@@ -58,18 +58,18 @@ readWithModeSpec = do
       --  2. Adding the value of the x register to it.
       it "should wrap around if (mem[pc + 1] + X > 0xFF)" $
         let x = 0x23
-            (byte, _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
+            ((byte,_), _) = runState (readWithMode ZeroPageX) (genProg, initCpuForX x)
         in  byte `shouldBe` 0xDE
 
     describe "ZeroPageY" $ do
       it "should return the value at the address built with the value at the address PC + 1, added to the Y register" $
         let y = 0x01
-            (byte, _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
+            ((byte,_), _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
         in  byte `shouldBe` 0xA1
 
       it "should wrap around if (mem[pc + 1] + Y > 0xFF)" $
         let y = 0x23
-            (byte, _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
+            ((byte,_), _) = runState (readWithMode ZeroPageY) (genProg, initCpuForY y)
         in  byte `shouldBe` 0xDE
 
 
@@ -83,7 +83,11 @@ writeWithModeSpec = do
         let byte = 0x05
             (_, (ram, _)) = runState (writeWithMode ZeroPage byte) (genProg, initCpu)
         in  (ram ! 0xDE) `shouldBe` byte
-
-
+    describe "ZeroPageX" $
+      it "should write to the address given by ZeroPageX addressing" $
+        let x = 0x01
+            byte = 0x05
+            (_, (ram, _)) = runState (writeWithMode ZeroPageX byte) (genProg, initCpuForX x)
+        in  (ram ! 0xDF) `shouldBe` 0x05
 
 

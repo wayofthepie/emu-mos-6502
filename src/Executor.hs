@@ -12,11 +12,12 @@ import Data.Bits
 import Data.Maybe (maybe)
 import qualified Data.Vector as V
 import GHC.TypeLits
-import GHC.Word (Word8)
+import GHC.Word (Word8, Word16)
 
 import Cpu
 import Cpu.Instruction
 
+import Debug.Trace
 
 -- | Wraps an instruction so we can build and pass around 'Instruction's.
 data Executable = forall m a o s c e.
@@ -26,15 +27,18 @@ data Executable = forall m a o s c e.
   ) => Executable (Instruction m a o s c e)
 deriving instance Show Executable
 
-
-loadAndExecute prog = flip runState (initRamZero // prog, initCpu) $ do
+-- For testing. Load prog into memory, point program counter at /pc/ and execute.
+loadAndExecute prog pc = flip runState (initRamZero // prog, initCpuForPc pc) $ do
   (PC pc) <- getRegister programCounter
-  unless (fromIntegral pc == length prog) (exec pc)
+  let initPc = pc
+  exec initPc pc
  where
-  exec pc = do
-    (ram, cpu) <- get
+  exec initPc pc = do
+    (ram, _) <- get
     let inst = decodeOpCode (ram ! fromIntegral pc)
     execute inst
+    (PC next) <- getRegister programCounter
+    unless (next >= initPc + (fromIntegral . length $ prog)) (exec initPc next)
 
 decodeOpCode :: Word8 -> Executable
 decodeOpCode w = case w of
@@ -72,23 +76,29 @@ decodeOpCode w = case w of
 
 -- | Execute a single instruction.
 execute :: Executable -> State (Ram, Cpu) ()
-execute (Executable ins) = execute' ins
+execute (Executable ins) = execute' ins >>= \crossed -> do
+  incPcBy instructionSize
+  -- FIXME: Do something with cycles!
+ where
+  instructionSize = instSize . instructionInfo $ ins
 
-execute' :: InstructionConstraints o s c e => Instruction m a o s c e -> State (Ram, Cpu) ()
-execute' inst@(Instruction mnem mode) = do
+-- | Execute the instruction, returning whether the instruction crossed the page boundary.
+execute' :: InstructionConstraints o s c e => Instruction m a o s c e -> State (Ram, Cpu) Bool
+execute' inst@(Instruction mnem mode) =
   case mnem of
     LDA -> do
-      byte <- readWithMode mode
+      (byte,crossed) <- traceShow "LDA" $ readWithMode mode
       loadRegister (Accumulator byte)
-      incPcBy instructionSize
- where
-  info = instructionInfo inst
-  instructionSize = instSize info
-
+      pure crossed
+    STA -> do
+      (Accumulator byte) <- traceShow "STA" $ getRegister accumulator
+      writeWithMode mode byte
+      pure False
 
 -- | Is the given 'Word8' negative.
 isNegative :: Word8 -> Bool
 isNegative w = testBit w 7
+
 
 -- | Is the given 'Word8' zero.
 isZero :: Word8 -> Bool
