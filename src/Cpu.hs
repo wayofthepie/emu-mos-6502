@@ -91,23 +91,23 @@ readWithMode ZeroPageX = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let (X x) = xRegister cpu
-  byte <- readZeroPageRegister ram pc x
+  let byte = readZeroPageRegister ram pc x
   pure (byte, False)
 
 readWithMode ZeroPageY = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
   let (Y y) = yRegister cpu
-  byte <- readZeroPageRegister ram pc y
+  let byte = readZeroPageRegister ram pc y
   pure (byte, False)
 
 
--- | Read from mem using the given 'Word8' value from the X or Y register. This is used for
--- 'ZeropageX' or 'ZeroPageY' reads.
-readZeroPageRegister :: Ram -> Word16 -> Word8 -> State (Ram, a) Word8
-readZeroPageRegister ram pc regVal = do
+-- | Read from memory using the given 'Word8' value from the X or Y register. This is used
+-- for 'ZeropageX' or 'ZeroPageY' reads.
+readZeroPageRegister :: Ram -> Word16 -> Word8 -> Word8
+readZeroPageRegister ram pc regVal =
   let addr = fromIntegral $ (ram ! (pc + 1)) + regVal
-  pure $ ram !  addr
+  in  ram ! addr
 
 
 -- | Write to a memory address using the given addressing mode.
@@ -123,11 +123,23 @@ writeWithMode ZeroPage byte =  do
   put (ram // [(addr, byte)], cpu)
 
 writeWithMode ZeroPageX byte = do
+  (X x) <- getRegister xRegister
+  writeZeroPageRegister x byte
+
+writeWithMode ZeroPageY byte = do
+  (Y y) <- getRegister yRegister
+  writeZeroPageRegister y byte
+
+
+-- | Write to memory using the semantics of 'ZeroPageX' and 'ZeroPageY', with the register
+-- value to use given with /regVal/.
+writeZeroPageRegister :: Word8 -> Word8 -> State (Ram, Cpu) ()
+writeZeroPageRegister regVal byte = do
   (ram, cpu) <- get
   (PC pc) <- getRegister programCounter
-  (X x) <- getRegister xRegister
-  let addr = fromIntegral $ (ram ! (pc + 1)) + x
+  let addr = fromIntegral $ (ram ! (pc + 1)) + regVal
   put (ram // [(addr, byte)], cpu)
+
 
 --------------------------------------------------------------------------------
 -- * Cpu
