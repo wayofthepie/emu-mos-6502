@@ -104,7 +104,7 @@ readWithMode ZeroPageY = do
 
 -- | Read from mem using the given 'Word8' value from the X or Y register. This is used for
 -- 'ZeropageX' or 'ZeroPageY' reads.
-readZeroPageRegister :: Ram -> Word16 -> Word8 -> State (Ram, b) Word8
+readZeroPageRegister :: Ram -> Word16 -> Word8 -> State (Ram, a) Word8
 readZeroPageRegister ram pc regVal = do
   let addr = fromIntegral $ (ram ! (pc + 1)) + regVal
   pure $ ram !  addr

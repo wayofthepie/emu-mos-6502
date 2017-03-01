@@ -78,16 +78,17 @@ readWithModeSpec = do
 ------------------------------------------------------------------------------------------
 writeWithModeSpec = do
   describe "writeWithMode" $ do
+    let byte = 0x05
     describe "ZeroPage" $
       it "should write to the address given by the value at pc + 1" $
-        let byte = 0x05
-            (_, (ram, _)) = runState (writeWithMode ZeroPage byte) (genProg, initCpu)
+        let (_, (ram, _)) = runState (writeWithMode ZeroPage byte) (genProg, initCpu)
         in  (ram ! 0xDE) `shouldBe` byte
-    describe "ZeroPageX" $
+    describe "ZeroPageX" $ do
       it "should write to the address given by ZeroPageX addressing" $
         let x = 0x01
-            byte = 0x05
             (_, (ram, _)) = runState (writeWithMode ZeroPageX byte) (genProg, initCpuForX x)
-        in  (ram ! 0xDF) `shouldBe` 0x05
-
-
+        in  (ram ! 0xDF) `shouldBe` byte
+      it "should wrap around if (mem[pc + 1] + X > 0xFF)" $
+        let x = 0x23
+            (_, (ram, _)) = runState (writeWithMode ZeroPageX byte) (genProg, initCpuForX x)
+        in  (ram ! 0x01) `shouldBe` byte
