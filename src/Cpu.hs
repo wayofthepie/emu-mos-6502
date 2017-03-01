@@ -138,6 +138,7 @@ writeWithMode Absolute byte = do
   let addr = high + low
   put (ram // [(addr, byte)], cpu)
 
+
 -- | Write to memory using the semantics of 'ZeroPageX' and 'ZeroPageY', with the register
 -- value to use given with /regVal/.
 writeZeroPageRegister :: Word8 -> Word8 -> State (Ram, Cpu) ()
