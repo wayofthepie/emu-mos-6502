@@ -22,9 +22,12 @@ library
     , Cpu.Instruction
     , Executor
   build-depends:
-    base >=4.9 && <4.10
+    base >=4.9 && < 5
+    , cereal
     , containers
+    , megaparsec
     , mtl
+    , text
     , vector
   hs-source-dirs:      src
 

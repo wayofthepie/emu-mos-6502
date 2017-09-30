@@ -6,146 +6,56 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 module Cpu.Instruction where
 
-import Data.Kind
-import Data.Proxy
-import Data.Type.Bool
-import Data.Type.Equality
-import GHC.TypeLits
-import GHC.Word (Word8, Word16)
+import GHC.Word (Word8)
 
 
--- Singleton types for mnemonics.
-data SADC; data SAND; data SASL
-data SLDA; data SLDX
-data SSTA
+data Mnemonic = ADC | LDA | LDX |  STA deriving (Eq, Show)
 
--- | Singleton types for addressing modes.
-data SImplied
-data SImmediate
-data SZeroPage
-data SZeroPageX
-data SZeroPageY
-data SAbsolute
-data SAbsoluteX
-data SAbsoluteY
-data SIndirect
-data SIndexedIndirect
-data SIndirectIndexed
+data AddressMode =  
+  Immediate | ZeroPage  | ZeroPageX | ZeroPageY
+  | Absolute  | AbsoluteX | AbsoluteY 
+  | IndexedIndirect | IndirectIndexed 
+  deriving (Eq, Show)
 
-
--- | Represents all singleton type address modes.
-class IsAddr a
-instance IsAddr SImmediate
-instance IsAddr SZeroPage
-instance IsAddr SZeroPageX
-instance IsAddr SZeroPageY
-instance IsAddr SAbsolute
-instance IsAddr SAbsoluteX
-instance IsAddr SAbsoluteY
-instance IsAddr SIndirect
-instance IsAddr SIndexedIndirect
-instance IsAddr SIndirectIndexed
-
--- | Represents all singleton type mnemonics
-class IsMnemonic a
-instance IsMnemonic SADC
-instance IsMnemonic SLDA
-instance IsMnemonic SLDX
-instance IsMnemonic SSTA
-
-data Mnemonic a where
-
-  -- | Add the contents of a memory location to the accumulator together with the carry bit.
-  -- If overflow occurs, sets the carry bit, this enables multiple byte addition to be
-  -- performed.
-  ADC :: Mnemonic SADC
-  LDA :: Mnemonic SLDA
-  LDX :: Mnemonic SLDX
-
-  -- | Store the contents of the 'Accumulator' into memory.
-  STA :: Mnemonic SSTA
-deriving instance Show (Mnemonic a)
-
-data AddressMode a where
-  Implied   :: AddressMode SImplied
-  Immediate :: AddressMode SImmediate
-  ZeroPage  :: AddressMode SZeroPage
-  ZeroPageX :: AddressMode SZeroPageX
-  ZeroPageY :: AddressMode SZeroPageY
-  Absolute  :: AddressMode SAbsolute
-  AbsoluteX :: AddressMode SAbsoluteX
-  AbsoluteY :: AddressMode SAbsoluteY
-  Indirect  :: AddressMode SIndirect
-  IndexedIndirect :: AddressMode SIndexedIndirect
-  IndirectIndexed :: AddressMode SIndirectIndexed
-deriving instance Show (AddressMode a)
-
--- | 'Instruction' holds the invariants relating to an instruction.
-data Instruction :: Type -> Type -> Nat -> Nat -> Nat -> Nat -> Type where
-  Instruction :: (IsMnemonic m, IsAddr a)
-             => Mnemonic m
-             -> AddressMode a
-             -> Instruction m a op size cycles oops
-
-deriving instance Show (Instruction m a o s c oops)
-
--- | Build the invariants for the given operator. The information about each instruction is
--- taken from http://obelisk.me.uk/6502/reference.html.
-type family OpBuild o = r where
-  -- ADC
-  OpBuild 0x69 = Instruction SADC SImmediate 0x69 2 2 0
-  OpBuild 0x65 = Instruction SADC SZeroPage  0x65 2 3 0
-  OpBuild 0x75 = Instruction SADC SZeroPageX 0x75 2 4 0
-  OpBuild 0x6D = Instruction SADC SAbsolute  0x6D 3 4 0
-  OpBuild 0x7D = Instruction SADC SAbsoluteX 0x7D 3 4 1
-  OpBuild 0x79 = Instruction SADC SAbsoluteY 0x79 3 4 1
-  OpBuild 0x61 = Instruction SADC SIndexedIndirect 0x61 2 6 0
-  OpBuild 0x71 = Instruction SADC SIndirectIndexed 0x71 2 5 1
-
-  -- LDA
-  OpBuild 0xA9 = Instruction SLDA SImmediate 0xA9 2 2 0
-  OpBuild 0xA5 = Instruction SLDA SZeroPage  0xA5 2 3 0
-  OpBuild 0xB5 = Instruction SLDA SZeroPageX 0xB5 2 4 0
-  OpBuild 0xAD = Instruction SLDA SAbsolute  0xAD 3 4 0
-  OpBuild 0xBD = Instruction SLDA SAbsoluteX 0xBD 3 4 1
-  OpBuild 0xB9 = Instruction SLDA SAbsoluteY 0xB9 3 4 1
-  OpBuild 0xA1 = Instruction SLDA SIndexedIndirect 0xA1 2 6 0
-  OpBuild 0xB1 = Instruction SLDA SIndirectIndexed 0xB1 2 5 1
-
-  -- LDX
-  OpBuild 0xA2 = Instruction SLDX SImmediate 0xA2 2 2 0
-  OpBuild 0xA6 = Instruction SLDX SZeroPage  0xA6 2 3 0
-  OpBuild 0xB6 = Instruction SLDX SZeroPageY 0xB6 2 4 0
-  OpBuild 0xAE = Instruction SLDX SAbsolute  0xAE 3 4 0
-  OpBuild 0xBE = Instruction SLDX SAbsoluteY 0xBE 3 4 1
-
-  -- STA
-  OpBuild 0x85 = Instruction SSTA SZeroPage  0x85 2 3 0
-  OpBuild 0x95 = Instruction SSTA SZeroPageX 0x95 2 4 0
-  OpBuild 0x8D = Instruction SSTA SAbsolute  0x8D 3 4 0
-  OpBuild 0x9D = Instruction SSTA SAbsoluteX  0x9D 3 5 0
-  OpBuild 0x99 = Instruction SSTA SAbsoluteY  0x99 3 5 0
-  OpBuild 0x81 = Instruction SSTA SIndexedIndirect 0x81 2 6 0
-  OpBuild 0x91 = Instruction SSTA SIndirectIndexed 0x91 2 6 0
-
-data InstructionInfo = InstructionInfo
-  { _opCode :: Word8
-  , _size   :: Int
-  , _cycles :: Int
-  , _oops   :: Int
+data Instruction = Instruction
+  { instMnem   :: Mnemonic
+  , instAddressMode :: AddressMode 
+  , instSize   :: Int
+  , instCycles :: Int
+  , instOops   :: Int
   } deriving (Eq, Show)
 
-instOpCode = _opCode
-instSize = _size
-instCycles = _cycles
-instOops = _oops
-
-type InstructionConstraints o s c p = (KnownNat o, KnownNat s, KnownNat c, KnownNat p)
-
-instructionInfo :: InstructionConstraints o s c p => Instruction mm a o s c p -> InstructionInfo
-instructionInfo (_ :: Instruction mm a o s c p) = InstructionInfo
-  (fromIntegral . natVal $ (Proxy :: Proxy o))
-  (fromIntegral . natVal $ (Proxy :: Proxy s))
-  (fromIntegral . natVal $ (Proxy :: Proxy c))
-  (fromIntegral . natVal $ (Proxy :: Proxy p))
-
+buildInstruction :: Word8 -> Instruction
+buildInstruction opcode = case opcode of
+  -- ADC
+  0x69 -> Instruction ADC Immediate 2 2 0
+  0x65 -> Instruction ADC ZeroPage 2 3 0
+  0x75 -> Instruction ADC ZeroPageX 2 4 0
+  0x6D -> Instruction ADC Absolute 3 4 0
+  0x7D -> Instruction ADC AbsoluteX 3 4 1
+  0x79 -> Instruction ADC AbsoluteY 3 4 1
+  0x61 -> Instruction ADC IndexedIndirect 2 6 0
+  0x71 -> Instruction ADC IndirectIndexed 2 5 1
+  -- LDA
+  0xA9 -> Instruction LDA Immediate 2 2 0
+  0xA5 -> Instruction LDA ZeroPage 2 3 0
+  0xB5 -> Instruction LDA ZeroPageX 2 4 0
+  0xAD -> Instruction LDA Absolute 3 4 0
+  0xBD -> Instruction LDA AbsoluteX 3 4 1
+  0xB9 -> Instruction LDA AbsoluteY 3 4 1
+  0xA1 -> Instruction LDA IndexedIndirect 2 6 0
+  0xB1 -> Instruction LDA IndirectIndexed 2 5 1
+  -- LDX
+  0xA2 -> Instruction LDX Immediate 2 2 0
+  0xA6 -> Instruction LDX ZeroPage 2 3 0
+  0xB6 -> Instruction LDX ZeroPageY 2 4 0
+  0xAE -> Instruction LDX Absolute 3 4 0
+  0xBE -> Instruction LDX AbsoluteY 3 4 1
+  -- STA
+  0x85 -> Instruction STA ZeroPage 2 3 0
+  0x95 -> Instruction STA ZeroPageX 2 4 0
+  0x8D -> Instruction STA Absolute 3 4 0
+  0x9D -> Instruction STA AbsoluteX 3 5 0
+  0x99 -> Instruction STA AbsoluteY 3 5 0
+  0x81 -> Instruction STA IndexedIndirect 2 6 0
+  0x91 -> Instruction STA IndirectIndexed 2 6 0

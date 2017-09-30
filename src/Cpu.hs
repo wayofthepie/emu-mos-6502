@@ -74,7 +74,7 @@ initRamZero = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 -- Calling 'readWithMode' implies the program counter is pointing at the address of the
 -- currently executing operation. So the first address 'readWithMode' will look at is 'PC'
 -- + 1 .
-readWithMode :: AddressMode a -> State (Ram, Cpu) (Word8, Bool)
+readWithMode :: AddressMode -> State (Ram, Cpu) (Word8, Bool)
 readWithMode Immediate = do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
@@ -115,7 +115,7 @@ readZeroPageRegister ram pc regVal =
 --Calling 'writeWithMode' implies the program counter is pointing at the address of the
 -- currently executing operation. So the first address 'writeWithMode' will look at is 'PC'
 -- + 1 .
-writeWithMode :: AddressMode a -> Word8 -> State (Ram, Cpu) ()
+writeWithMode :: AddressMode -> Word8 -> State (Ram, Cpu) ()
 writeWithMode ZeroPage byte =  do
   (ram, cpu) <- get
   let (PC pc) = programCounter cpu
@@ -342,4 +342,3 @@ withStatusFlag (flag :: StatusBit a) f = do
 -- | Return the bit location corresponding to the given 'StatusBit'.
 statusBit :: KnownNat a => StatusBit a -> Int
 statusBit (_ :: StatusBit a) = fromIntegral (natVal (Proxy :: Proxy a))
-
