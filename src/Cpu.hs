@@ -333,7 +333,7 @@ isFlagSet f = do
 -- | With the given 'StatusBit' location and a function, update the status register with that
 -- function.
 withStatusFlag :: KnownNat a => StatusBit a -> (Word8 -> Int -> Word8) -> State (b, Cpu) ()
-withStatusFlag (flag :: StatusBit a) f = do
+withStatusFlag (_ :: StatusBit a) f = do
   (a, cpu) <- get
   let (Status byte) = _status cpu
   put $ (a, cpu { _status = Status $ f byte (fromIntegral (natVal (Proxy :: Proxy a))) })
