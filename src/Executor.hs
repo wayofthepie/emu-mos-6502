@@ -42,8 +42,9 @@ execute' :: Instruction -> State (Ram, Cpu) Bool
 execute' inst@(Instruction mnem mode isize icycles oops) =
   case mnem of
     LDA -> do
-      (byte,crossed) <- readWithMode mode      
+      (byte,crossed) <- readWithMode mode
       when (byte == 0x00) (setFlag Zero)
+      when (isNegative byte) (setFlag Sign)
       loadRegister (Accumulator byte)
       pure crossed
     STA -> do
