@@ -24,6 +24,23 @@ spec = do
   executeSpec
 
 executeSpec = do
+  describe "execute test program" $ do
+    let cpu = Cpu (PC 0x00) (X 0x00) (Y 0x00) (initStatus 0x00) (SP 0x00) (Accumulator 0x00)
+    let program =
+          [ (0x0000, 0xA9), (0x0001, 0x01)
+          , (0x0002, 0x8D), (0x0003, 0x00), (0x0004, 0x02)
+          , (0x0005, 0xA9), (0x0006, 0x05)
+          , (0x0007, 0x8D), (0x0008, 0x01), (0x0009, 0x02)
+          , (0x000A, 0xA9), (0x000B, 0x08)
+          , (0x000C, 0x8D), (0x000D, 0x02), (0x000E, 0x02)
+          ]
+    let (_, (ram, cpu)) = loadAndExecute program 0x00
+    it "should have correct cpu state after execution" $
+      cpu `shouldBe` Cpu (PC 0x0F) (X 0x00) (Y 0x00) (initStatus 0x00) (SP 0x00) (Accumulator 0x08)
+
+    it "should have correct values in memory after execution" $
+      [ ram ! 0x0200, ram ! 0x0201, ram ! 0x0202 ] `shouldBe` [ 0x01, 0x05, 0x08 ]
+
   describe "execute" $ do
     describe "LDA" $ do
       let execLdaImmediate memory = flip runState (memory, initCpu) $ do execute (buildInstruction 0xA9)
@@ -75,3 +92,5 @@ initCpuForAcc acc = Cpu
   (initStatus 0x00)
   (SP 0x00)
   (Accumulator acc)
+
+

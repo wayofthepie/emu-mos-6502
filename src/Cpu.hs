@@ -37,7 +37,7 @@ initRamZero = Ram $ (V.generate (fromIntegral 0xffff) (\_ -> 0x00))
 -- | Load a list of address/value pairs into memory. e.g. load prog:
 --
 -- @
--- let prog = [(0x000,0xA9),(0x0001, 0xDE)] in
+-- let prog = [(0x0000,0xA9),(0x0001, 0xDE)] in
 -- flip runState (initRamZero // prog, initCpu) $ do
 --   ... work with loaded program ...
 -- @

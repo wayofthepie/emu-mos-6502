@@ -6,20 +6,21 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 module Cpu.Instruction where
 
+import Data.Monoid ((<>))
 import GHC.Word (Word8)
 
 
 data Mnemonic = ADC | LDA | LDX |  STA deriving (Eq, Show)
 
-data AddressMode =  
+data AddressMode =
   Immediate | ZeroPage  | ZeroPageX | ZeroPageY
-  | Absolute  | AbsoluteX | AbsoluteY 
-  | IndexedIndirect | IndirectIndexed 
+  | Absolute  | AbsoluteX | AbsoluteY
+  | IndexedIndirect | IndirectIndexed
   deriving (Eq, Show)
 
 data Instruction = Instruction
   { instMnem   :: Mnemonic
-  , instAddressMode :: AddressMode 
+  , instAddressMode :: AddressMode
   , instSize   :: Int
   , instCycles :: Int
   , instOops   :: Int
@@ -59,3 +60,4 @@ buildInstruction opcode = case opcode of
   0x99 -> Instruction STA AbsoluteY 3 5 0
   0x81 -> Instruction STA IndexedIndirect 2 6 0
   0x91 -> Instruction STA IndirectIndexed 2 6 0
+  _ -> error $ "Could not find instruction for " <> show opcode

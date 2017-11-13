@@ -78,6 +78,8 @@ toWord16 = fromIntegral
 toWord8 :: Integral a => a -> Word8
 toWord8 = fromIntegral
 
+-- | True if addition in two's compliment of the given bytes
+-- yields overflow in the result.
 hasOverflow :: Word8 -> Word8 -> Word8 -> Bool
 hasOverflow opOne opTwo result =
   complement (opOne .|. opTwo) .&. (opOne .|. result) .&. 0x80 /= 0
