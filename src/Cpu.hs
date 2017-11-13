@@ -17,6 +17,8 @@ import Numeric (showHex)
 
 import Cpu.Instruction
 
+import Debug.Trace
+
 newtype Machine a = Machine (State (a, Cpu) ()) -- ???
 
 
